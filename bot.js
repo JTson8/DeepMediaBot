@@ -3,12 +3,11 @@ var logger = require('winston');
 var auth = require('./auth.json');
 var xmlParser = require('xml2json');
 var XMLHttpRequest = require("xmlhttprequest").XMLHttpRequest;
-var http = new XMLHttpRequest();
 
 var recentlyAddedMoviesSet = new Set();
 var recentlyAddedShowsSet = new Set();
 
-var monitor = null;
+var monitoringMap = new Map();
 
 // Configure logger settings
 logger.remove(logger.transports.Console);
@@ -73,12 +72,13 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 
 
 function getRecentlyAddedMovies(channelID) {
-	try{
-		var url = 'https://184-97-36-22.f42896105181455c8cdb2fdd51967b9f.plex.direct:29193/library/sections/1/all?type=1&sort=addedAt%3Adesc&includeCollections=1&X-Plex-Container-Start=0&X-Plex-Container-Size=5&X-Plex-Product=Plex%20Web&X-Plex-Version=3.89.2&X-Plex-Client-Identifier=4djmactnta6ycw2etoj47vyl&X-Plex-Platform=Chrome&X-Plex-Platform-Version=72.0&X-Plex-Sync-Version=2&X-Plex-Model=hosted&X-Plex-Device=Windows&X-Plex-Device-Name=Chrome&X-Plex-Device-Screen-Resolution=1920x937%2C1920x1080&X-Plex-Token=FxPMDqXtMHTQwADf2u4Z&X-Plex-Language=en&X-Plex-Text-Format=plain'
-		http.open("GET", url);
-		http.send();
-		var firstTime = true
-		http.onreadystatechange=function() {
+	var http = new XMLHttpRequest();
+	var url = 'https://184-97-36-22.f42896105181455c8cdb2fdd51967b9f.plex.direct:29193/library/sections/1/all?type=1&sort=addedAt%3Adesc&includeCollections=1&X-Plex-Container-Start=0&X-Plex-Container-Size=5&X-Plex-Product=Plex%20Web&X-Plex-Version=3.89.2&X-Plex-Client-Identifier=4djmactnta6ycw2etoj47vyl&X-Plex-Platform=Chrome&X-Plex-Platform-Version=72.0&X-Plex-Sync-Version=2&X-Plex-Model=hosted&X-Plex-Device=Windows&X-Plex-Device-Name=Chrome&X-Plex-Device-Screen-Resolution=1920x937%2C1920x1080&X-Plex-Token=FxPMDqXtMHTQwADf2u4Z&X-Plex-Language=en&X-Plex-Text-Format=plain'
+	http.open("GET", url);
+	http.send();
+	var firstTime = true
+	http.onreadystatechange=function() {
+		try{
 			if(this.readyState==4 && this.status==200); {
 				if(http.responseText && firstTime) {
 					firstTime = false
@@ -93,19 +93,20 @@ function getRecentlyAddedMovies(channelID) {
 					}
 				}
 			}
+		} catch(err) {
+			logger.info(err.message);
 		}
-	} catch(err) {
-		logger.info(err.message);
 	}
 }
 
 function getRecentlyAddedShows(channelID) {
-	try {
-		var url = 'https://184-97-36-22.f42896105181455c8cdb2fdd51967b9f.plex.direct:29193/hubs/home/recentlyAdded?type=2&X-Plex-Container-Start=0&X-Plex-Container-Size=10&X-Plex-Product=Plex%20Web&X-Plex-Version=3.89.2&X-Plex-Client-Identifier=4djmactnta6ycw2etoj47vyl&X-Plex-Platform=Chrome&X-Plex-Platform-Version=72.0&X-Plex-Sync-Version=2&X-Plex-Model=hosted&X-Plex-Device=Windows&X-Plex-Device-Name=Chrome&X-Plex-Device-Screen-Resolution=1221x937%2C1920x1080&X-Plex-Token=FxPMDqXtMHTQwADf2u4Z&X-Plex-Language=en&X-Plex-Text-Format=plain'
-		http.open("GET", url);
-		http.send();
-		var firstTime = true
-		http.onreadystatechange=function() {
+	var http = new XMLHttpRequest();
+	var url = 'https://184-97-36-22.f42896105181455c8cdb2fdd51967b9f.plex.direct:29193/hubs/home/recentlyAdded?type=2&X-Plex-Container-Start=0&X-Plex-Container-Size=10&X-Plex-Product=Plex%20Web&X-Plex-Version=3.89.2&X-Plex-Client-Identifier=4djmactnta6ycw2etoj47vyl&X-Plex-Platform=Chrome&X-Plex-Platform-Version=72.0&X-Plex-Sync-Version=2&X-Plex-Model=hosted&X-Plex-Device=Windows&X-Plex-Device-Name=Chrome&X-Plex-Device-Screen-Resolution=1221x937%2C1920x1080&X-Plex-Token=FxPMDqXtMHTQwADf2u4Z&X-Plex-Language=en&X-Plex-Text-Format=plain'
+	http.open("GET", url);
+	http.send();
+	var firstTime = true
+	http.onreadystatechange=function() {
+		try {
 			if(this.readyState==4 && this.status==200); {
 				if(http.responseText && firstTime) {
 					firstTime = false
@@ -120,21 +121,21 @@ function getRecentlyAddedShows(channelID) {
 					}
 				}
 			}
-		}
-	} catch(err) {
-		logger.info(err.message);
+		} catch(err) {
+			logger.info(err.message);
+		} 
 	}
 }
 
 function startMonitoring(channelID) {
-	if(monitor == null) {
+	if(!monitoringMap.has(channelID)) {
 		fillRecentMovieSet();
 		fillRecentShowSet();
-		monitor = setInterval(function(){monitorShowsAndMovies(channelID)}, 3000);
+		monitoringMap[channelID] = setInterval(function(){monitorShowsAndMovies(channelID)}, 3000);
 		bot.sendMessage({
 			to: channelID,
 			message: 'Now monitoring Plex server for newly added movies and shows.'
-		});
+		});	
 	} else {
 		bot.sendMessage({
 			to: channelID,
@@ -144,9 +145,9 @@ function startMonitoring(channelID) {
 }
 
 function stopMonitoring(channelID) {
-	if(monitor != null) {
-		clearInterval(monitor);
-		monitor = null;
+	if(monitoringMap.has(channelID)) {
+		clearInterval(monitoringMap[channelID]);
+		monitoringMap.delete(channelID);
 		bot.sendMessage({
 			to: channelID,
 			message: 'Monitoring for Plex server has stopped.'
@@ -166,12 +167,13 @@ function monitorShowsAndMovies(channelID) {
 }
 
 function checkRecentMovies(channelID) {
-	try {
-		var url = 'https://184-97-36-22.f42896105181455c8cdb2fdd51967b9f.plex.direct:29193/library/sections/1/all?type=1&sort=addedAt%3Adesc&includeCollections=1&X-Plex-Container-Start=0&X-Plex-Container-Size=5&X-Plex-Product=Plex%20Web&X-Plex-Version=3.89.2&X-Plex-Client-Identifier=4djmactnta6ycw2etoj47vyl&X-Plex-Platform=Chrome&X-Plex-Platform-Version=72.0&X-Plex-Sync-Version=2&X-Plex-Model=hosted&X-Plex-Device=Windows&X-Plex-Device-Name=Chrome&X-Plex-Device-Screen-Resolution=1920x937%2C1920x1080&X-Plex-Token=FxPMDqXtMHTQwADf2u4Z&X-Plex-Language=en&X-Plex-Text-Format=plain'
-		http.open("GET", url);
-		http.send();
-		var firstTime = true
-		http.onreadystatechange=function() {
+	var http = new XMLHttpRequest();
+	var url = 'https://184-97-36-22.f42896105181455c8cdb2fdd51967b9f.plex.direct:29193/library/sections/1/all?type=1&sort=addedAt%3Adesc&includeCollections=1&X-Plex-Container-Start=0&X-Plex-Container-Size=5&X-Plex-Product=Plex%20Web&X-Plex-Version=3.89.2&X-Plex-Client-Identifier=4djmactnta6ycw2etoj47vyl&X-Plex-Platform=Chrome&X-Plex-Platform-Version=72.0&X-Plex-Sync-Version=2&X-Plex-Model=hosted&X-Plex-Device=Windows&X-Plex-Device-Name=Chrome&X-Plex-Device-Screen-Resolution=1920x937%2C1920x1080&X-Plex-Token=FxPMDqXtMHTQwADf2u4Z&X-Plex-Language=en&X-Plex-Text-Format=plain'
+	http.open("GET", url);
+	http.send();
+	var firstTime = true
+	http.onreadystatechange=function() {
+		try {
 			if(this.readyState==4 && this.status==200); {
 				if(http.responseText && firstTime) {
 					firstTime = false
@@ -196,19 +198,20 @@ function checkRecentMovies(channelID) {
 					recentlyAddedMoviesSet = allMovies;
 				}
 			}
+		} catch(err) {
+			logger.info(err.message);
 		}
-	} catch(err) {
-		logger.info(err.message);
 	}
 }
 
 function checkRecentTvshows(channelID) {
-	try {
-		var url = 'https://184-97-36-22.f42896105181455c8cdb2fdd51967b9f.plex.direct:29193/hubs/home/recentlyAdded?type=2&X-Plex-Container-Start=0&X-Plex-Container-Size=10&X-Plex-Product=Plex%20Web&X-Plex-Version=3.89.2&X-Plex-Client-Identifier=4djmactnta6ycw2etoj47vyl&X-Plex-Platform=Chrome&X-Plex-Platform-Version=72.0&X-Plex-Sync-Version=2&X-Plex-Model=hosted&X-Plex-Device=Windows&X-Plex-Device-Name=Chrome&X-Plex-Device-Screen-Resolution=1221x937%2C1920x1080&X-Plex-Token=FxPMDqXtMHTQwADf2u4Z&X-Plex-Language=en&X-Plex-Text-Format=plain'
-		http.open("GET", url);
-		http.send();
-		var firstTime = true
-		http.onreadystatechange=function() {
+	var http = new XMLHttpRequest();
+	var url = 'https://184-97-36-22.f42896105181455c8cdb2fdd51967b9f.plex.direct:29193/hubs/home/recentlyAdded?type=2&X-Plex-Container-Start=0&X-Plex-Container-Size=10&X-Plex-Product=Plex%20Web&X-Plex-Version=3.89.2&X-Plex-Client-Identifier=4djmactnta6ycw2etoj47vyl&X-Plex-Platform=Chrome&X-Plex-Platform-Version=72.0&X-Plex-Sync-Version=2&X-Plex-Model=hosted&X-Plex-Device=Windows&X-Plex-Device-Name=Chrome&X-Plex-Device-Screen-Resolution=1221x937%2C1920x1080&X-Plex-Token=FxPMDqXtMHTQwADf2u4Z&X-Plex-Language=en&X-Plex-Text-Format=plain'
+	http.open("GET", url);
+	http.send();
+	var firstTime = true
+	http.onreadystatechange=function() {
+		try {
 			if(this.readyState==4 && this.status==200); {
 				if(http.responseText && firstTime) {
 					firstTime = false
@@ -233,19 +236,20 @@ function checkRecentTvshows(channelID) {
 					recentlyAddedShowsSet = allShows;
 				}
 			}
+		} catch(err) {
+			logger.info(err.message);
 		}
-	} catch(err) {
-		logger.info(err.message);
 	}
 }
 
 function fillRecentMovieSet() {
-	try {
-		var url = 'https://184-97-36-22.f42896105181455c8cdb2fdd51967b9f.plex.direct:29193/library/sections/1/all?type=1&sort=addedAt%3Adesc&includeCollections=1&X-Plex-Container-Start=0&X-Plex-Container-Size=5&X-Plex-Product=Plex%20Web&X-Plex-Version=3.89.2&X-Plex-Client-Identifier=4djmactnta6ycw2etoj47vyl&X-Plex-Platform=Chrome&X-Plex-Platform-Version=72.0&X-Plex-Sync-Version=2&X-Plex-Model=hosted&X-Plex-Device=Windows&X-Plex-Device-Name=Chrome&X-Plex-Device-Screen-Resolution=1920x937%2C1920x1080&X-Plex-Token=FxPMDqXtMHTQwADf2u4Z&X-Plex-Language=en&X-Plex-Text-Format=plain'
-		http.open("GET", url);
-		http.send();
-		var firstTime = true
-		http.onreadystatechange=function() {
+	var http = new XMLHttpRequest();
+	var url = 'https://184-97-36-22.f42896105181455c8cdb2fdd51967b9f.plex.direct:29193/library/sections/1/all?type=1&sort=addedAt%3Adesc&includeCollections=1&X-Plex-Container-Start=0&X-Plex-Container-Size=5&X-Plex-Product=Plex%20Web&X-Plex-Version=3.89.2&X-Plex-Client-Identifier=4djmactnta6ycw2etoj47vyl&X-Plex-Platform=Chrome&X-Plex-Platform-Version=72.0&X-Plex-Sync-Version=2&X-Plex-Model=hosted&X-Plex-Device=Windows&X-Plex-Device-Name=Chrome&X-Plex-Device-Screen-Resolution=1920x937%2C1920x1080&X-Plex-Token=FxPMDqXtMHTQwADf2u4Z&X-Plex-Language=en&X-Plex-Text-Format=plain'
+	http.open("GET", url);
+	http.send();
+	var firstTime = true
+	http.onreadystatechange=function() {
+		try {
 			if(this.readyState==4 && this.status==200); {
 				if(http.responseText && firstTime) {
 					firstTime = false
@@ -258,19 +262,20 @@ function fillRecentMovieSet() {
 					recentlyAddedMoviesSet = allMovies;
 				}
 			}
+		} catch(err) {
+			logger.info(err.message);
 		}
-	} catch(err) {
-		logger.info(err.message);
 	}
 }
 
 function fillRecentShowSet() {
-	try {
-		var url = 'https://184-97-36-22.f42896105181455c8cdb2fdd51967b9f.plex.direct:29193/hubs/home/recentlyAdded?type=2&X-Plex-Container-Start=0&X-Plex-Container-Size=10&X-Plex-Product=Plex%20Web&X-Plex-Version=3.89.2&X-Plex-Client-Identifier=4djmactnta6ycw2etoj47vyl&X-Plex-Platform=Chrome&X-Plex-Platform-Version=72.0&X-Plex-Sync-Version=2&X-Plex-Model=hosted&X-Plex-Device=Windows&X-Plex-Device-Name=Chrome&X-Plex-Device-Screen-Resolution=1221x937%2C1920x1080&X-Plex-Token=FxPMDqXtMHTQwADf2u4Z&X-Plex-Language=en&X-Plex-Text-Format=plain'
-		http.open("GET", url);
-		http.send();
-		var firstTime = true
-		http.onreadystatechange=function() {
+	var http = new XMLHttpRequest();
+	var url = 'https://184-97-36-22.f42896105181455c8cdb2fdd51967b9f.plex.direct:29193/hubs/home/recentlyAdded?type=2&X-Plex-Container-Start=0&X-Plex-Container-Size=10&X-Plex-Product=Plex%20Web&X-Plex-Version=3.89.2&X-Plex-Client-Identifier=4djmactnta6ycw2etoj47vyl&X-Plex-Platform=Chrome&X-Plex-Platform-Version=72.0&X-Plex-Sync-Version=2&X-Plex-Model=hosted&X-Plex-Device=Windows&X-Plex-Device-Name=Chrome&X-Plex-Device-Screen-Resolution=1221x937%2C1920x1080&X-Plex-Token=FxPMDqXtMHTQwADf2u4Z&X-Plex-Language=en&X-Plex-Text-Format=plain'
+	http.open("GET", url);
+	http.send();
+	var firstTime = true
+	http.onreadystatechange=function() {
+		try{ 
 			if(this.readyState==4 && this.status==200); {
 				if(http.responseText && firstTime) {
 					firstTime = false
@@ -283,8 +288,8 @@ function fillRecentShowSet() {
 					recentlyAddedShowsSet = allShows;
 				}
 			}
+		} catch(err) {
+			logger.info(err.message);
 		}
-	} catch(err) {
-		logger.info(err.message);
 	}
 }
