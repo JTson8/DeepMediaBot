@@ -4,6 +4,7 @@
   "description": "Plex bot for Deep Server",
   "main": "bot.js",
   "author": "Jonah Tollefson",
+  "scripts": {"start": "node bot_TauRefactor.js"},
   "dependencies": {
     "discord.io": "https://github.com/woor/discord.io/tarball/gateway_v6",
     "winston": "^3.2.1",
