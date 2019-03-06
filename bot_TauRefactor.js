@@ -1,13 +1,10 @@
 var Discord = require('discord.io');
 var logger = require('winston');
 var auth = require('./auth.json');
-var https = require('https');
+var https = require('http');
 
-var xmlParser = require('xml2json');
-var XMLHttpRequest = require("xmlhttprequest").XMLHttpRequest;
-
-var recentlyAddedMoviesSet = new Set();
-var recentlyAddedShowsSet = new Set();
+var oldMovies = new Set();
+var oldShows = new Set();
 
 var monitoringMap = new Map();
 
@@ -72,8 +69,8 @@ bot.on('message', function (user, userID, channelID, message, evt) {
      }
 });
 
-function doAPICall(command) {
-	https.get(`http://localhost:8181/api/v2?apikey=66198313a092496b8a725867d2223b5f&cmd=${command}`, (resp) => {
+function doAPICall(command, callback) {
+	https.get(`http://42.0.0.18:8181/api/v2?apikey=dcab23dfaa6d85e599283363051ee4f8&cmd=${command}`, (resp) => {
 		let data = "";
 		
 		resp.on('data', (chunk) => {
@@ -81,7 +78,9 @@ function doAPICall(command) {
 		});
 		
 		resp.on('end', () => {
-			return JSON.parse(data);
+			logger.info(data);
+			logger.info("help");
+			return callback(JSON.parse(data));
 		});
 	}).on("error", (err) => {
 		logger.error(err.message);
@@ -90,8 +89,8 @@ function doAPICall(command) {
 
 function startMonitoring(channelID) {
 	if(!monitoringMap.has(channelID)) {
-		oldMovies = getRecentlyAddedMovies();
-		oldShows = getRecentlyAddedShows();
+		getRecentlyAddedMovies(function(movies)) {oldMovies = movies};
+		getRecentlyAddedShows(function(shows)) {oldShows = shows};
 		monitoringMap[channelID] = setInterval(function(){monitoringAction(channelID)}, 3000);
 		bot.sendMessage({
 			to: channelID,
@@ -122,21 +121,24 @@ function stopMonitoring(channelID) {
 }
 
 function showRecentlyAddedMovies(channelID) {
-	var movies = getRecentlyAddedMovies();
-	movies.forEach(function(movie) {
-		bot.sendMessage({
-			to: channelID,
-			message: `----------------------------------------\n**Recently Added Episode** - ${show.grandparentTitle}\n__*Title*__ : ${show.title}\n__*Season*__ : ${show.parentTitle}\n__*Summary*__ : ${show.summary}\n----------------------------------------`							
+	getRecentlyAddedMovies(function(movies) {
+		movies.forEach(function(movie) {
+			logger.info("second")
+			bot.sendMessage({
+				to: channelID,
+				message: `----------------------------------------\n**Recently Added Movie** - ${movie.title}\n__*Year*__ : ${movie.year}\n__*Summary*__ : ${movie.summary}\n----------------------------------------`							
+			});
 		});
 	});
 }
 
 function showRecentlyAddedShows(channelID) {
-	var movies = getRecentlyAddedShows();
-	movies.forEach(function(movie) {
-		bot.sendMessage({
-			to: channelID,
-			message: `----------------------------------------\n**Recently Added Movie** - ${movie.title}\n__*Year*__ : ${movie.year}\n__*Summary*__ : ${movie.summary}\n----------------------------------------`							
+	getRecentlyAddedShows(function(shows) {
+		shows.forEach(function(show) {
+			bot.sendMessage({
+				to: channelID,
+				message: `----------------------------------------\n**Recently Added Episode** - ${show.grandparentTitle}\n__*Title*__ : ${show.title}\n__*Season*__ : ${show.parentTitle}\n__*Summary*__ : ${show.summary}\n----------------------------------------`							
+			});
 		});
 	});
 }
@@ -173,18 +175,21 @@ function checkRecentShows() {
 	return newShows;
 }
 
-function getRecentlyAddedMovies() {
-	var jsonResult = doAPICall('get_recently_added&count=20&media_type=movie');
-	var movies = new Set();
-	jsonResult.recently_added.forEach(function(movie) {movies.add(movie);});
-	return movies
+function getRecentlyAddedMovies(callback) {
+	doAPICall('get_recently_added&count=20&media_type=movie', function(jsonResult) {
+		var movies = new Set();
+		logger.info(jsonResult);
+		jsonResult.response.data.recently_added.forEach(function(movie) {movies.add(movie);});
+		return callback(movies);
+	});
 }
 
-function getRecentlyAddedShows() {
-	var jsonResult = doAPICall('get_recently_added&count=20&media_type=show');
-	var shows = new Set();
-	jsonResult.recently_added.forEach(function(show) {movies.add(show);});
-	return shows
+function getRecentlyAddedShows(callback) {
+	doAPICall('get_recently_added&count=20&media_type=movie', function(jsonResult) {
+		var shows = new Set();
+		jsonResult.recently_added.forEach(function(show) {movies.add(show);});
+		return callback(shows)
+	});
 }
 
 function compareAndGetNewElements(oldSet, newSet) {
@@ -198,7 +203,7 @@ function compareAndGetNewElements(oldSet, newSet) {
 	return newElements;
 }
 
-function home_stats(channelID) {
-	var jsonResult = doAPICall('get_home_stats');
-	
-}
+//function home_stats(channelID) {
+//	var jsonResult = doAPICall('get_home_stats');
+//	
+//}
