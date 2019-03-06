@@ -70,7 +70,7 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 });
 
 function doAPICall(command, callback) {
-	https.get(`http://42.0.0.18:8181/api/v2?apikey=dcab23dfaa6d85e599283363051ee4f8&cmd=${command}`, (resp) => {
+	https.get(`http://[host]:[port]/api/v2?apikey=[ADD API KEY]&cmd=${command}`, (resp) => {
 		let data = "";
 		
 		resp.on('data', (chunk) => {
