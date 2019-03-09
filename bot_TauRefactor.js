@@ -2,7 +2,7 @@ var Discord = require('discord.io');
 var logger = require('winston');
 var auth = require('./auth.json');
 var config = require('./config.json');
-var https = require('http');
+var http = require('http');
 
 var oldMovies = new Set();
 var oldShows = new Set();
@@ -31,8 +31,8 @@ bot.on('message', function (user, userID, channelID, message, evt) {
     if (message.substring(0, 1) == '~') {
         var args = message.substring(1).split(' ');
         var cmd = args[0];
-       
-        args = args.splice(1);
+		
+		args = args.splice(1);
         switch(cmd) {
             // !ping
             case 'ping':
@@ -65,13 +65,20 @@ bot.on('message', function (user, userID, channelID, message, evt) {
                     message: '**Planned features for the this bot in the feature**\nCommands to look at latest episodes from a specific show and to be able to monitor new episodes only from a specific show.\nCommand to give a request of a movie or show to be added to the Plex Server'
                 });
 				break;
+			case 'report':
+				if(args.length != 0) {
+					showReport(channelID, args[0]);
+				} else {
+					showReport(channelID, "alltime");
+				}
+				break
             break;
          }
      }
 });
 
 function doAPICall(command, callback) {
-	https.get(`${config.host}:${config.port}/api/v2?apikey=${config.apikey}&cmd=${command}`, (resp) => {
+	http.get(`${config.host}:${config.port}/api/v2?apikey=${config.apikey}&cmd=${command}`, (resp) => {
 		let data = "";
 		
 		resp.on('data', (chunk) => {
@@ -211,4 +218,119 @@ function compareAndGetNewElements(oldSet, newSet) {
 		}
 	});
 	return newElements;
+}
+
+function showReport(channelID, timeFrame) {
+	logger.info("report");
+	var days = 0;
+	var reportType = "All Time";
+	if (timeFrame == "day") { 
+		days = 1;
+		reportType = "Daily"; 
+	}
+	else if (timeFrame == "week") {
+		days = 7;
+		reportType + "Weekly";
+	}
+	else if (timeFrame == "month") {
+		days = 30;
+		reportType = "Monthly";
+	}
+	home_stats(days, function(stats_map) {
+		var topMoviesMsg = "---------- Top Movies ----------\n";
+		stats_map.get('topMovies').forEach(function(movie) {
+			topMoviesMsg += `${movie.title} - Total Plays: ${movie.total_plays}\n`
+		});
+		topMoviesMsg += "--------------------------------\n";
+		
+		var popMoviesMsg = "---------- Popular Movies ----------\n";
+		stats_map.get('popularMovies').forEach(function(movie) {
+			popMoviesMsg += `${movie.title} - Number Users Watched: ${movie.users_watched}\n`
+		});
+		popMoviesMsg += "-------------------------------------\n";
+		
+		var topShowsMsg = "---------- Top Shows ----------\n";
+		stats_map.get('topShows').forEach(function(show) {
+			topShowsMsg += `${show.title} - Total Plays: ${show.total_plays}\n`
+		});
+		topShowsMsg += "-------------------------------------\n";
+		
+		var popShowsMsg = "---------- Popular Shows ----------\n";
+		stats_map.get('popularShows').forEach(function(show) {
+			popShowsMsg += `${show.title} - Number Users Watched: ${show.users_watched}\n`
+		});
+		popShowsMsg += "-------------------------------------\n"
+		
+		var topUsersMsg = "---------- Top Users -----------\n";
+		stats_map.get('topUsers').forEach(function(user) {
+			topUsersMsg += `${user.friendly_name} - Total Plays: ${user.total_plays}, Time Spent: ${user.total_duration}\n`
+		});
+		topUsersMsg += "-------------------------------------\n"
+//		bot.sendMessage({
+//			to: channelID,
+//			message: `---- **Deep Media ${reportType} Report ----\n\n`							
+//		});
+		bot.sendMessage({
+			to: channelID,
+			message: `${topMoviesMsg}`							
+		});
+		bot.sendMessage({
+			to: channelID,
+			message: `${popMoviesMsg}\n`							
+		});
+		bot.sendMessage({
+			to: channelID,
+			message: `${topShowsMsg}`							
+		});
+		bot.sendMessage({
+			to: channelID,
+			message: `${popShowsMsg}\n`							
+		});
+		bot.sendMessage({
+			to: channelID,
+			message: `${topUsersMsg}\n`							
+		});
+//		bot.sendMessage({
+//			to: channelID,
+//			message: `--------------------------------`							
+//		});
+	});
+}
+
+function home_stats(days, callback) {
+	var homeStatsMap = new Map();
+	doAPICall(`get_home_stats&time_range=${days}`, function(jsonResult) {
+		var topMovies = new Set();
+		var popularMovies = new Set();
+		var topShows = new Set();
+		var popularShows = new Set();
+		var topUsers = new Set();
+		jsonResult.response.data.forEach(function(data) {
+			switch (data.stat_id) {
+				case 'top_movies':
+					data.rows.forEach(function(topMovie) {topMovies.add(topMovie)});
+					break;
+				case 'popular_movies':
+					data.rows.forEach(function(popMovie) {popularMovies.add(popMovie)});
+					break;
+				case 'top_tv':
+					data.rows.forEach(function(topTV) {topShows.add(topTV)});
+					break;
+				case 'popular_tv':
+					data.rows.forEach(function(popTV) {popularShows.add(popTV)});
+					break;
+				case 'top_users':
+					data.rows.forEach(function(user) {topUsers.add(user)});
+					break;
+				break;
+			}
+		});
+		homeStatsMap.set("topMovies", topMovies);
+		homeStatsMap.set("popularMovies", popularMovies);
+		homeStatsMap.set("topShows", topShows);
+		homeStatsMap.set("popularShows", popularShows);
+		homeStatsMap.set("topUsers", topUsers);
+		return callback(homeStatsMap);
+	});
+	
 }
