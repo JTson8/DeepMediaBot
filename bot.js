@@ -1,11 +1,10 @@
 var Discord = require('discord.io');
 var logger = require('winston');
 var auth = require('./auth.json');
-var xmlParser = require('xml2json');
-var XMLHttpRequest = require("xmlhttprequest").XMLHttpRequest;
+var apiResource = require('./apiResource.js')
 
-var recentlyAddedMoviesSet = new Set();
-var recentlyAddedShowsSet = new Set();
+var oldMovies = new Set();
+var oldShows = new Set();
 
 var monitoringMap = new Map();
 
@@ -31,21 +30,14 @@ bot.on('message', function (user, userID, channelID, message, evt) {
     if (message.substring(0, 1) == '~') {
         var args = message.substring(1).split(' ');
         var cmd = args[0];
-       
-        args = args.splice(1);
+		
+		args = args.splice(1);
         switch(cmd) {
-            // !ping
-            case 'ping':
-                bot.sendMessage({
-                    to: channelID,
-                    message: 'Pong!'
-                });
-				break;
 			case 'latest_movies':
-				getRecentlyAddedMovies(channelID);
+				showRecentlyAddedMovies(channelID);
 				break;
 			case 'latest_shows':
-				getRecentlyAddedShows(channelID);
+				showRecentlyAddedShows(channelID);
 				break;
 			case 'start_monitor':
 				startMonitoring(channelID);
@@ -56,82 +48,30 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 			case 'help':
 				bot.sendMessage({
 					to: channelID,
-					message: '**Welcome!** I am the Deep Media Plex Bot! My current duties are to provide recently added shows and movies.\n**Commands**\n*latest_movies* : Get information on the last 5 added movies\n*latest_shows* : Get information on the last 5 added episodes\n*start_monitor* : Starts monitoring the server. I will send messages whenever a new movie or show is added\n*stop_monitor* : Stops monitoring the server\n*planned_features* : Some quick information on what is planned to be added later as features for the Bot.'
+					message: '**Welcome!** I am the Deep Media Plex Bot! My current duties are to provide recently added shows and movies.\n**Commands** - Start with \'~\'\n*latest_movies* : Get information on the last 5 added movies\n*latest_shows* : Get information on the last 5 added episodes\n*start_monitor* : Starts monitoring the server. I will send messages whenever a new movie or show is added\n*stop_monitor* : Stops monitoring the server\n*report [alltime, day, week, month]* : Gives a stat report within the given time frame\n*user_stats [username]* : Gives stats on the given user'
 				});
 				break
-			case 'planned_features':
-				bot.sendMessage({
-                    to: channelID,
-                    message: '**Planned features for the this bot in the feature**\nCommands to look at latest episodes from a specific show and to be able to monitor new episodes only from a specific show.\nCommand to give a request of a movie or show to be added to the Plex Server'
-                });
-				break;
+			case 'report':
+				if(args.length != 0) {
+					showReport(channelID, args[0]);
+				} else {
+					showReport(channelID, "alltime");
+				}
+				break
+			case 'user_stats':
+				showUserStats(channelID, args.join(' '))
+				break
             break;
          }
      }
 });
 
-
-function getRecentlyAddedMovies(channelID) {
-	var http = new XMLHttpRequest();
-	var url = 'https://184-97-36-22.f42896105181455c8cdb2fdd51967b9f.plex.direct:29193/library/sections/1/all?type=1&sort=addedAt%3Adesc&includeCollections=1&X-Plex-Container-Start=0&X-Plex-Container-Size=5&X-Plex-Product=Plex%20Web&X-Plex-Version=3.89.2&X-Plex-Client-Identifier=4djmactnta6ycw2etoj47vyl&X-Plex-Platform=Chrome&X-Plex-Platform-Version=72.0&X-Plex-Sync-Version=2&X-Plex-Model=hosted&X-Plex-Device=Windows&X-Plex-Device-Name=Chrome&X-Plex-Device-Screen-Resolution=1920x937%2C1920x1080&X-Plex-Token=FxPMDqXtMHTQwADf2u4Z&X-Plex-Language=en&X-Plex-Text-Format=plain'
-	http.open("GET", url);
-	http.send();
-	var firstTime = true
-	http.onreadystatechange=function() {
-		try{
-			if(this.readyState==4 && this.status==200); {
-				if(http.responseText && firstTime) {
-					firstTime = false
-					var responseJsonText = xmlParser.toJson(http.responseText);
-					var responseJson = JSON.parse(responseJsonText);
-					for(i = 0; i < responseJson['MediaContainer'].Video.length; i++) {
-						var movie = responseJson['MediaContainer'].Video[i]
-						bot.sendMessage({
-							to: channelID,
-							message: `----------------------------------------\n**Recently Added Movie** - ${movie.title}\n__*Year*__ : ${movie.year}\n__*Summary*__ : ${movie.summary}\n----------------------------------------`							
-						});
-					}
-				}
-			}
-		} catch(err) {
-			logger.info(err.message);
-		}
-	}
-}
-
-function getRecentlyAddedShows(channelID) {
-	var http = new XMLHttpRequest();
-	var url = 'https://184-97-36-22.f42896105181455c8cdb2fdd51967b9f.plex.direct:29193/hubs/home/recentlyAdded?type=2&X-Plex-Container-Start=0&X-Plex-Container-Size=10&X-Plex-Product=Plex%20Web&X-Plex-Version=3.89.2&X-Plex-Client-Identifier=4djmactnta6ycw2etoj47vyl&X-Plex-Platform=Chrome&X-Plex-Platform-Version=72.0&X-Plex-Sync-Version=2&X-Plex-Model=hosted&X-Plex-Device=Windows&X-Plex-Device-Name=Chrome&X-Plex-Device-Screen-Resolution=1221x937%2C1920x1080&X-Plex-Token=FxPMDqXtMHTQwADf2u4Z&X-Plex-Language=en&X-Plex-Text-Format=plain'
-	http.open("GET", url);
-	http.send();
-	var firstTime = true
-	http.onreadystatechange=function() {
-		try {
-			if(this.readyState==4 && this.status==200); {
-				if(http.responseText && firstTime) {
-					firstTime = false
-					var responseJsonText = xmlParser.toJson(http.responseText);
-					var responseJson = JSON.parse(responseJsonText);
-					for(i = 0; i < responseJson['MediaContainer'].Video.length; i++) {
-						var show = responseJson['MediaContainer'].Video[i]
-						bot.sendMessage({
-							to: channelID,
-							message: `----------------------------------------\n**Recently Added Episode** - ${show.grandparentTitle}\n__*Title*__ : ${show.title}\n__*Season*__ : ${show.parentTitle}\n__*Summary*__ : ${show.summary}\n----------------------------------------`							
-						});
-					}
-				}
-			}
-		} catch(err) {
-			logger.info(err.message);
-		} 
-	}
-}
-
 function startMonitoring(channelID) {
+	logger.info(monitoringMap.keys);
 	if(!monitoringMap.has(channelID)) {
-		fillRecentMovieSet();
-		fillRecentShowSet();
-		monitoringMap[channelID] = setInterval(function(){monitorShowsAndMovies(channelID)}, 3000);
+		apiResource.getRecentlyAddedMovies(function(movies) {oldMovies = movies});
+		apiResource.getRecentlyAddedShows(function(shows) {oldShows = shows});
+		monitoringMap.set(channelID, setInterval(function(){monitoringAction(channelID)}, 300));
 		bot.sendMessage({
 			to: channelID,
 			message: 'Now monitoring Plex server for newly added movies and shows.'
@@ -146,7 +86,7 @@ function startMonitoring(channelID) {
 
 function stopMonitoring(channelID) {
 	if(monitoringMap.has(channelID)) {
-		clearInterval(monitoringMap[channelID]);
+		clearInterval(monitoringMap.get(channelID));
 		monitoringMap.delete(channelID);
 		bot.sendMessage({
 			to: channelID,
@@ -160,136 +100,185 @@ function stopMonitoring(channelID) {
 	}
 }
 
-
-function monitorShowsAndMovies(channelID) {
-	checkRecentMovies(channelID);
-	checkRecentTvshows(channelID);
+function showRecentlyAddedMovies(channelID) {
+	apiResource.getRecentlyAddedMovies(function(movies) {
+		movies.forEach(function(movie) {
+			bot.sendMessage({
+				to: channelID,
+				message: `----------------------------------------\n**Recently Added Movie** - ${movie.title}\n__*Year*__ : ${movie.year}\n__*Summary*__ : ${movie.summary}\n----------------------------------------`							
+			});
+		});
+	});
 }
 
-function checkRecentMovies(channelID) {
-	var http = new XMLHttpRequest();
-	var url = 'https://184-97-36-22.f42896105181455c8cdb2fdd51967b9f.plex.direct:29193/library/sections/1/all?type=1&sort=addedAt%3Adesc&includeCollections=1&X-Plex-Container-Start=0&X-Plex-Container-Size=5&X-Plex-Product=Plex%20Web&X-Plex-Version=3.89.2&X-Plex-Client-Identifier=4djmactnta6ycw2etoj47vyl&X-Plex-Platform=Chrome&X-Plex-Platform-Version=72.0&X-Plex-Sync-Version=2&X-Plex-Model=hosted&X-Plex-Device=Windows&X-Plex-Device-Name=Chrome&X-Plex-Device-Screen-Resolution=1920x937%2C1920x1080&X-Plex-Token=FxPMDqXtMHTQwADf2u4Z&X-Plex-Language=en&X-Plex-Text-Format=plain'
-	http.open("GET", url);
-	http.send();
-	var firstTime = true
-	http.onreadystatechange=function() {
-		try {
-			if(this.readyState==4 && this.status==200); {
-				if(http.responseText && firstTime) {
-					firstTime = false
-					var responseJsonText = xmlParser.toJson(http.responseText);
-					var responseJson = JSON.parse(responseJsonText);
-					var newMovieSet = new Set();
-					var allMovies = new Set();
-					for(i = 0; i < responseJson['MediaContainer'].Video.size; i++) {
-						if(!recentlyAddedMoviesSet.has(responseJson['MediaContainer'].Video[i].title)) {
-							newMovieSet.add(responseJson['MediaContainer'].Video[i]);
-						}
-						allMovies.add(responseJson['MediaContainer'].Video[i].title);
-					}
-					if (newMovieSet.size > 0) {
-						for (movie of newMovieSet.values()) {
-							bot.sendMessage({
-								to: channelID,
-								message: `----------------------------------------\n**Movie Added** - ${movie.title}\n__*Year*__ : ${movie.year}\n__*Summary*__ : ${movie.summary}\n----------------------------------------`							
-							});
-						}
-					}
-					recentlyAddedMoviesSet = allMovies;
-				}
+function showRecentlyAddedShows(channelID) {
+	apiResource.getRecentlyAddedShows(function(shows) {
+		shows.forEach(function(show) {
+			if (show.grandparent_title == "") {
+				bot.sendMessage({
+					to: channelID,
+					message: `----------------------------------------\n**Recently Added Series** - ${show.parent_title}\n__*Season*__ : ${show.title}\n----------------------------------------`							
+				});
+			} else {
+				bot.sendMessage({
+					to: channelID,
+					message: `----------------------------------------\n**Recently Added Episode** - ${show.grandparent_title}\n__*Title*__ : ${show.title}\n__*Season*__ : ${show.parent_title}\n__*Summary*__ : ${show.summary}\n----------------------------------------`							
+				});
 			}
-		} catch(err) {
-			logger.info(err.message);
-		}
-	}
+		});
+	});
 }
 
-function checkRecentTvshows(channelID) {
-	var http = new XMLHttpRequest();
-	var url = 'https://184-97-36-22.f42896105181455c8cdb2fdd51967b9f.plex.direct:29193/hubs/home/recentlyAdded?type=2&X-Plex-Container-Start=0&X-Plex-Container-Size=10&X-Plex-Product=Plex%20Web&X-Plex-Version=3.89.2&X-Plex-Client-Identifier=4djmactnta6ycw2etoj47vyl&X-Plex-Platform=Chrome&X-Plex-Platform-Version=72.0&X-Plex-Sync-Version=2&X-Plex-Model=hosted&X-Plex-Device=Windows&X-Plex-Device-Name=Chrome&X-Plex-Device-Screen-Resolution=1221x937%2C1920x1080&X-Plex-Token=FxPMDqXtMHTQwADf2u4Z&X-Plex-Language=en&X-Plex-Text-Format=plain'
-	http.open("GET", url);
-	http.send();
-	var firstTime = true
-	http.onreadystatechange=function() {
-		try {
-			if(this.readyState==4 && this.status==200); {
-				if(http.responseText && firstTime) {
-					firstTime = false
-					var responseJsonText = xmlParser.toJson(http.responseText);
-					var responseJson = JSON.parse(responseJsonText);
-					var newShowSet = new Set();
-					var allShows = new Set();
-					for(i = 0; i < responseJson['MediaContainer'].Video.size; i++) {
-						if(!recentlyAddedShowsSet.has(responseJson['MediaContainer'].Video[i].title)) {
-							newShowSet.add(responseJson['MediaContainer'].Video[i]);
-						}
-						allShows.add(responseJson['MediaContainer'].Video[i].title);
-					}
-					if (newShowSet.size > 0) {
-						for (show of newShowSet.values()) {
-							bot.sendMessage({
-								to: channelID,
-								message: `----------------------------------------\n**New Episode Added** - ${show.grandparentTitle}\n__*Title*__ : ${show.title}\n__*Season*__ : ${show.parentTitle}\n__*Summary*__ : ${show.summary}\n----------------------------------------`							
-							});
-						}
-					}
-					recentlyAddedShowsSet = allShows;
-				}
-			}
-		} catch(err) {
-			logger.info(err.message);
-		}
+function showReport(channelID, timeFrame) {
+	var days = 0;
+	var reportType = "All Time";
+	if (timeFrame == "day") { 
+		days = 1;
+		reportType = "Daily"; 
 	}
+	else if (timeFrame == "week") {
+		days = 7;
+		reportType + "Weekly";
+	}
+	else if (timeFrame == "month") {
+		days = 30;
+		reportType = "Monthly";
+	}
+	apiResource.home_stats(days, function(stats_map) {
+		var topMoviesMsg = "---------- Top Movies ----------\n";
+		stats_map.get('topMovies').forEach(function(movie) {
+			topMoviesMsg += `${movie.title} - Total Plays: ${movie.total_plays}\n`
+		});
+		topMoviesMsg += "--------------------------------\n";
+		
+		var popMoviesMsg = "---------- Popular Movies ----------\n";
+		stats_map.get('popularMovies').forEach(function(movie) {
+			popMoviesMsg += `${movie.title} - Number Users Watched: ${movie.users_watched}\n`
+		});
+		popMoviesMsg += "-------------------------------------\n";
+		
+		var topShowsMsg = "---------- Top Shows ----------\n";
+		stats_map.get('topShows').forEach(function(show) {
+			topShowsMsg += `${show.title} - Total Plays: ${show.total_plays}\n`
+		});
+		topShowsMsg += "-------------------------------------\n";
+		
+		var popShowsMsg = "---------- Popular Shows ----------\n";
+		stats_map.get('popularShows').forEach(function(show) {
+			popShowsMsg += `${show.title} - Number Users Watched: ${show.users_watched}\n`
+		});
+		popShowsMsg += "-------------------------------------\n"
+		
+		var topUsersMsg = "---------- Top Users -----------\n";
+		stats_map.get('topUsers').forEach(function(user) {
+			topUsersMsg += `${user.friendly_name} - Total Plays: ${user.total_plays}, Time Spent: ${user.total_duration}\n`
+		});
+		topUsersMsg += "-------------------------------------\n"
+		bot.sendMessage({
+			to: channelID,
+			message: `${topMoviesMsg}`							
+		});
+		bot.sendMessage({
+			to: channelID,
+			message: `${popMoviesMsg}\n`							
+		});
+		bot.sendMessage({
+			to: channelID,
+			message: `${topShowsMsg}`							
+		});
+		bot.sendMessage({
+			to: channelID,
+			message: `${popShowsMsg}\n`							
+		});
+		bot.sendMessage({
+			to: channelID,
+			message: `${topUsersMsg}\n`							
+		});
+	});
 }
 
-function fillRecentMovieSet() {
-	var http = new XMLHttpRequest();
-	var url = 'https://184-97-36-22.f42896105181455c8cdb2fdd51967b9f.plex.direct:29193/library/sections/1/all?type=1&sort=addedAt%3Adesc&includeCollections=1&X-Plex-Container-Start=0&X-Plex-Container-Size=5&X-Plex-Product=Plex%20Web&X-Plex-Version=3.89.2&X-Plex-Client-Identifier=4djmactnta6ycw2etoj47vyl&X-Plex-Platform=Chrome&X-Plex-Platform-Version=72.0&X-Plex-Sync-Version=2&X-Plex-Model=hosted&X-Plex-Device=Windows&X-Plex-Device-Name=Chrome&X-Plex-Device-Screen-Resolution=1920x937%2C1920x1080&X-Plex-Token=FxPMDqXtMHTQwADf2u4Z&X-Plex-Language=en&X-Plex-Text-Format=plain'
-	http.open("GET", url);
-	http.send();
-	var firstTime = true
-	http.onreadystatechange=function() {
-		try {
-			if(this.readyState==4 && this.status==200); {
-				if(http.responseText && firstTime) {
-					firstTime = false
-					var responseJsonText = xmlParser.toJson(http.responseText);
-					var responseJson = JSON.parse(responseJsonText);
-					var allMovies = new Set();
-					for(i = 0; i < responseJson['MediaContainer'].Video.size; i++) {
-						allMovies.add(responseJson['MediaContainer'].Video[i].title);
-					}
-					recentlyAddedMoviesSet = allMovies;
-				}
-			}
-		} catch(err) {
-			logger.info(err.message);
+function showUserStats(channelID, username) {
+	apiResource.user_stats(username, function(statsMap) {
+		if (statsMap.size == 0) {
+			bot.sendMessage({
+				to: channelID,
+				message: `User ${username} does not exist`							
+			});
+		} else {
+			var dayMsg = `Last 24 hours : Total Time - ${statsMap.get('dailyWatch').total_time}, Total Plays - ${statsMap.get('dailyWatch').total_plays}\n`;
+			var weekMsg = `Last 7 days : Total Time - ${statsMap.get('weeklyWatch').total_time}, Total Plays - ${statsMap.get('weeklyWatch').total_plays}\n`;
+			var monthMsg = `Last 30 days : Total Time - ${statsMap.get('monthlylWatch').total_time}, Total Plays - ${statsMap.get('monthlylWatch').total_plays}\n`;
+			var allTimeMsg = `All Time : Total Time - ${statsMap.get('allTimeWatch').total_time}, Total Plays - ${statsMap.get('allTimeWatch').total_plays}\n`;
+			var lastWatchedMsg = `Last 3 Watched: \n`
+			statsMap.get('lastWatched').forEach(function(data) {
+				lastWatchedMsg += `\tTitle: ${data.last_played}, Player: ${data.player}\n`
+			});
+			bot.sendMessage({
+				to: channelID,
+				message: `---------- User Stats for ${username} ----------\n${dayMsg}${weekMsg}${monthMsg}${allTimeMsg}${lastWatchedMsg}------------------------------`							
+			});
 		}
-	}
+	});
 }
 
-function fillRecentShowSet() {
-	var http = new XMLHttpRequest();
-	var url = 'https://184-97-36-22.f42896105181455c8cdb2fdd51967b9f.plex.direct:29193/hubs/home/recentlyAdded?type=2&X-Plex-Container-Start=0&X-Plex-Container-Size=10&X-Plex-Product=Plex%20Web&X-Plex-Version=3.89.2&X-Plex-Client-Identifier=4djmactnta6ycw2etoj47vyl&X-Plex-Platform=Chrome&X-Plex-Platform-Version=72.0&X-Plex-Sync-Version=2&X-Plex-Model=hosted&X-Plex-Device=Windows&X-Plex-Device-Name=Chrome&X-Plex-Device-Screen-Resolution=1221x937%2C1920x1080&X-Plex-Token=FxPMDqXtMHTQwADf2u4Z&X-Plex-Language=en&X-Plex-Text-Format=plain'
-	http.open("GET", url);
-	http.send();
-	var firstTime = true
-	http.onreadystatechange=function() {
-		try{ 
-			if(this.readyState==4 && this.status==200); {
-				if(http.responseText && firstTime) {
-					firstTime = false
-					var responseJsonText = xmlParser.toJson(http.responseText);
-					var responseJson = JSON.parse(responseJsonText);
-					var allShows = new Set();
-					for(i = 0; i < responseJson['MediaContainer'].Video.size; i++) {
-						allShows.add(responseJson['MediaContainer'].Video[i].title);
-					}
-					recentlyAddedShowsSet = allShows;
-				}
+function monitoringAction(channelID) {
+	logger.info("monitoring");
+	checkRecentMovies(function(newMovies) {
+		logger.info("monitoring movies");
+		newMovies.forEach(function(movie) {
+			bot.sendMessage({
+				to: channelID,
+				message: `----------------------------------------\n**Movie Added** - ${movie.title}\n__*Year*__ : ${movie.year}\n__*Summary*__ : ${movie.summary}\n----------------------------------------`							
+			});
+		});
+	});
+
+	checkRecentShows(function(newShows) {
+		logger.info("monitoring shows");
+		newShows.forEach(function(show) {
+			if (show.grandparent_title == "") {
+				bot.sendMessage({
+					to: channelID,
+					message: `----------------------------------------\n**New Series Added** - ${show.parent_title}\n__*Season*__ : ${show.title}\n----------------------------------------`							
+				});
+			} else {
+				bot.sendMessage({
+					to: channelID,
+					message: `----------------------------------------\n**New Episode Added** - ${show.grandparent_title}\n__*Title*__ : ${show.title}\n__*Season*__ : ${show.parent_title}\n__*Summary*__ : ${show.summary}\n----------------------------------------`							
+				});
 			}
-		} catch(err) {
-			logger.info(err.message);
+		});
+	});
+}
+
+function checkRecentMovies(callback) {
+	apiResource.getRecentlyAddedMovies(function(movies) {
+		var newMovies = compareAndGetNewElements(oldMovies, movies);
+		oldMovies = movies;
+		return callback(newMovies);
+	});
+}
+
+function checkRecentShows(callback) {
+	apiResource.getRecentlyAddedShows(function(shows) {
+		var newShows = compareAndGetNewElements(oldShows, shows);
+		oldShows = shows;
+		return callback(newShows);
+	});
+}
+
+function compareAndGetNewElements(oldSet, newSet) {
+	var newElements = new Set();
+	newSet.forEach(function(e) {
+		var oldElement = null;
+		oldSet.forEach(function(oldE) {
+			if (oldE.rating_key == e.rating_key) {
+				oldElement = oldE;
+			}
+		});
+		if (oldElement == null) {
+			newElements.add(e);
 		}
-	}
+	});
+	return newElements;
 }
