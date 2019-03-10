@@ -72,6 +72,9 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 					showReport(channelID, "alltime");
 				}
 				break
+			case 'user_stats':
+				showUserStats(channelID, args.join(' '))
+				break
             break;
          }
      }
@@ -221,7 +224,6 @@ function compareAndGetNewElements(oldSet, newSet) {
 }
 
 function showReport(channelID, timeFrame) {
-	logger.info("report");
 	var days = 0;
 	var reportType = "All Time";
 	if (timeFrame == "day") { 
@@ -332,5 +334,64 @@ function home_stats(days, callback) {
 		homeStatsMap.set("topUsers", topUsers);
 		return callback(homeStatsMap);
 	});
-	
+}
+
+function showUserStats(channelID, username) {
+	user_stats(username, function(statsMap) {
+		if (statsMap.size == 0) {
+			bot.sendMessage({
+				to: channelID,
+				message: `User ${username} does not exist`							
+			});
+		} else {
+			var dayMsg = `Last 24 hours : Total Time - ${statsMap.get('dailyWatch').total_time}, Total Plays - ${statsMap.get('dailyWatch').total_plays}\n`;
+			var weekMsg = `Last 7 days : Total Time - ${statsMap.get('weeklyWatch').total_time}, Total Plays - ${statsMap.get('weeklyWatch').total_plays}\n`;
+			var monthMsg = `Last 30 days : Total Time - ${statsMap.get('monthlylWatch').total_time}, Total Plays - ${statsMap.get('monthlylWatch').total_plays}\n`;
+			var allTimeMsg = `All Time : Total Time - ${statsMap.get('allTimeWatch').total_time}, Total Plays - ${statsMap.get('allTimeWatch').total_plays}\n`;
+			var lastWatchedMsg = `Last 3 Watched: \n`
+			logger.info(statsMap.get('lastWatched').size);
+			statsMap.get('lastWatched').forEach(function(data) {
+				lastWatchedMsg += `\tTitle: ${data.last_played}, Player: ${data.player}\n`
+			});
+			bot.sendMessage({
+				to: channelID,
+				message: `---------- User Stats for ${username} ----------\n${dayMsg}${weekMsg}${monthMsg}${allTimeMsg}${lastWatchedMsg}------------------------------`							
+			});
+		}
+	});
+}
+
+function user_stats(username, callback) {
+	get_user_id(username, function(userId) {
+		if (userId == "") return callback(new Map());
+		var userStatsMap = new Map();
+		doAPICall(`get_user_watch_time_stats&user_id=${userId}`, function(jsonResult) {
+			jsonResult.response.data.forEach(function(data) {
+				if(data.query_days == 1) userStatsMap.set('dailyWatch', data);
+				else if(data.query_days == 7) userStatsMap.set('weeklyWatch', data);
+				else if(data.query_days == 30) userStatsMap.set('monthlylWatch', data);
+				else if(data.query_days == 0) userStatsMap.set('allTimeWatch', data);
+			});
+			doAPICall(`get_user_ips&user_id=${userId}`, function(jsonResult) {
+				var len = 3;
+				var lastWatchedSet = new Set();
+				if (jsonResult.response.data.data.length < 3) len = jsonResult.response.data.data.length;
+				for(var i = 0; i < len; i++) {
+					lastWatchedSet.add(jsonResult.response.data.data[i]);
+				}
+				userStatsMap.set('lastWatched', lastWatchedSet);
+				return callback(userStatsMap);
+			});
+		});
+	});
+}
+
+function get_user_id(username, callback) {
+	doAPICall('get_user_names', function(jsonResult) {
+		var userId = "";
+		jsonResult.response.data.forEach(function(user) {
+			if (user.friendly_name == username) { userId = user.user_id; }
+		})
+		return callback(userId);
+	});
 }
