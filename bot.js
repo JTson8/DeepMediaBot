@@ -48,7 +48,7 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 			case 'help':
 				bot.sendMessage({
 					to: channelID,
-					message: '**Welcome!** I am the Deep Media Plex Bot! My current duties are to provide recently added shows and movies.\n**Commands** - Start with \'~\'\n*latest_movies* : Get information on the last 5 added movies\n*latest_shows* : Get information on the last 5 added episodes\n*start_monitor* : Starts monitoring the server. I will send messages whenever a new movie or show is added\n*stop_monitor* : Stops monitoring the server\n*report [alltime, day, week, month]* : Gives a stat report within the given time frame\n*user_stats [username]* : Gives stats on the given user'
+					message: '**Welcome!** I am the Deep Media Plex Bot! My current duties are to provide recently added shows and movies.\n**Commands** - Start with \'~\'\n*latest_movies* : Get information on the last 5 added movies\n*latest_shows* : Get information on the last 5 added episodes\n*start_monitor* : Starts monitoring the server. I will send messages whenever a new movie or show is added\n*stop_monitor* : Stops monitoring the server\n*report [alltime, day, week, month]* : Gives a stat report within the given time frame\n*user_stats [username]* : Gives stats on the given user\n*user* : Gives list of all users and their ids'
 				});
 				break
 			case 'report':
@@ -59,7 +59,10 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 				}
 				break
 			case 'user_stats':
-				showUserStats(channelID, args.join(' '))
+				showUserStats(channelID, args.join(' '));
+				break
+			case 'users':
+				showUsers(channelID);
 				break
             break;
          }
@@ -67,11 +70,10 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 });
 
 function startMonitoring(channelID) {
-	logger.info(monitoringMap.keys);
 	if(!monitoringMap.has(channelID)) {
 		apiResource.getRecentlyAddedMovies(function(movies) {oldMovies = movies});
 		apiResource.getRecentlyAddedShows(function(shows) {oldShows = shows});
-		monitoringMap.set(channelID, setInterval(function(){monitoringAction(channelID)}, 300));
+		monitoringMap.set(channelID, setInterval(function(){monitoringAction(channelID)}, 30000));
 		bot.sendMessage({
 			to: channelID,
 			message: 'Now monitoring Plex server for newly added movies and shows.'
@@ -221,10 +223,22 @@ function showUserStats(channelID, username) {
 	});
 }
 
+function showUsers(channelID) {
+	apiResource.getUsers(function(users) {
+		var usersMsg = "";
+		users.forEach(function(user) {
+			usersMsg += `Username: ${user.friendly_name}, UserId: ${user.user_id}\n`
+		});
+		bot.sendMessage({
+				to: channelID,
+				message: usersMsg							
+			});
+	});
+}
+
 function monitoringAction(channelID) {
-	logger.info("monitoring");
+	logger.info('monitoring')
 	checkRecentMovies(function(newMovies) {
-		logger.info("monitoring movies");
 		newMovies.forEach(function(movie) {
 			bot.sendMessage({
 				to: channelID,
@@ -234,7 +248,6 @@ function monitoringAction(channelID) {
 	});
 
 	checkRecentShows(function(newShows) {
-		logger.info("monitoring shows");
 		newShows.forEach(function(show) {
 			if (show.grandparent_title == "") {
 				bot.sendMessage({

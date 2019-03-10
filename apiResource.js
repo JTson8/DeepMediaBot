@@ -95,14 +95,24 @@ function user_stats(username, callback) {
 	});
 }
 
+function getUsers(callback) {
+	doAPICall('get_user_names', function(jsonResult) {
+		var users = new Set();
+		jsonResult.response.data.forEach(function(user) {
+			users.add(user);
+		});
+		return callback(users);
+	});
+}
+
 function get_user_id(username, callback) {
 	doAPICall('get_user_names', function(jsonResult) {
 		var userId = "";
 		jsonResult.response.data.forEach(function(user) {
 			if (user.friendly_name == username) { userId = user.user_id; }
-		})
+		});
 		return callback(userId);
 	});
 }
 
-module.exports = {getRecentlyAddedMovies, getRecentlyAddedShows, home_stats, user_stats}
+module.exports = {getRecentlyAddedMovies, getRecentlyAddedShows, home_stats, user_stats, getUsers}
