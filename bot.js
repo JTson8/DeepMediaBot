@@ -1,12 +1,22 @@
 var Discord = require('discord.io');
 var logger = require('winston');
+var nodemailer = require("nodemailer");
 var auth = require('./auth.json');
 var apiResource = require('./apiResource.js')
+
+var transporter = nodemailer.createTransport({
+	service: 'gmail',
+	auth: {
+		user: auth.email,
+		pass: auth.emailpass
+	}
+});
 
 var oldMovies = new Set();
 var oldShows = new Set();
 
-var monitoringMap = new Map();
+var monitoringChannels = new Set();
+var monitoringEmails = new Set();
 
 // Configure logger settings
 logger.remove(logger.transports.Console);
@@ -24,6 +34,8 @@ bot.on('ready', function (evt) {
     logger.info('Connected');
     logger.info('Logged in as: ');
     logger.info(bot.username + ' - (' + bot.id + ')');
+	//setInterval(function(){monitoringAction()}, 1000*60*60);
+	setInterval(function(){monitoringAction()}, 3000);
 });
 bot.on('message', function (user, userID, channelID, message, evt) {
     // It will listen for messages that will start with `!`
@@ -45,6 +57,12 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 			case 'stop_monitor':
 				stopMonitoring(channelID);
 				break;
+			case 'subscribe':
+				subscribe(channelID, args.join(' '));
+				break
+			case 'unsubscribe':
+				unsubscribe(channelID, args.join(' '));
+				break
 			case 'help':
 				bot.sendMessage({
 					to: channelID,
@@ -70,10 +88,8 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 });
 
 function startMonitoring(channelID) {
-	if(!monitoringMap.has(channelID)) {
-		apiResource.getRecentlyAddedMovies(function(movies) {oldMovies = movies});
-		apiResource.getRecentlyAddedShows(function(shows) {oldShows = shows});
-		monitoringMap.set(channelID, setInterval(function(){monitoringAction(channelID)}, 30000));
+	if(!monitoringChannels.has(channelID)) {
+		monitoringChannels.add(channelID);
 		bot.sendMessage({
 			to: channelID,
 			message: 'Now monitoring Plex server for newly added movies and shows.'
@@ -87,9 +103,8 @@ function startMonitoring(channelID) {
 }
 
 function stopMonitoring(channelID) {
-	if(monitoringMap.has(channelID)) {
-		clearInterval(monitoringMap.get(channelID));
-		monitoringMap.delete(channelID);
+	if(monitoringChannels.has(channelID)) {
+		monitoringChannels.delete(channelID);
 		bot.sendMessage({
 			to: channelID,
 			message: 'Monitoring for Plex server has stopped.'
@@ -98,6 +113,50 @@ function stopMonitoring(channelID) {
 		bot.sendMessage({
 			to: channelID,
 			message: 'Monitoring for Plex server is already stopped.'
+		});
+	}
+}
+
+function subscribe(channelID, email) {
+	if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+		if(!monitoringEmails.has(email)) {
+			monitoringEmails.add(email);
+			bot.sendMessage({
+				to: channelID,
+				message: `${email} is now subscribed to Plex sever!`
+			});	
+		} else {
+			bot.sendMessage({
+				to: channelID,
+				message: 'Already subscribed to Plex server.'
+			});
+		}
+	} else {
+		bot.sendMessage({
+			to: channelID,
+			message: 'Invalid email address.'
+		});
+	}
+}
+
+function unsubscribe(channelID, email) {
+	if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+		if(monitoringEmails.has(email)) {
+			monitoringEmails.delete(email);
+			bot.sendMessage({
+				to: channelID,
+				message: `${email} has now been unsubscribed from Plex sever!`
+			});	
+		} else {
+			bot.sendMessage({
+				to: channelID,
+				message: 'Already unsubscribed from Plex server.'
+			});
+		}
+	} else {
+		bot.sendMessage({
+			to: channelID,
+			message: 'Invalid email address.'
 		});
 	}
 }
@@ -236,30 +295,42 @@ function showUsers(channelID) {
 	});
 }
 
-function monitoringAction(channelID) {
+function monitoringAction() {
 	logger.info('monitoring')
 	checkRecentMovies(function(newMovies) {
 		newMovies.forEach(function(movie) {
-			bot.sendMessage({
-				to: channelID,
-				message: `----------------------------------------\n**Movie Added** - ${movie.title}\n__*Year*__ : ${movie.year}\n__*Summary*__ : ${movie.summary}\n----------------------------------------`							
+			monitoringChannels.forEach(function(channelID) {
+				bot.sendMessage({
+					to: channelID,
+					message: `----------------------------------------\n**Movie Added** - ${movie.title}\n__*Year*__ : ${movie.year}\n__*Summary*__ : ${movie.summary}\n----------------------------------------`							
+				});
 			});
 		});
-	});
-
-	checkRecentShows(function(newShows) {
-		newShows.forEach(function(show) {
-			if (show.grandparent_title == "") {
-				bot.sendMessage({
-					to: channelID,
-					message: `----------------------------------------\n**New Series Added** - ${show.parent_title}\n__*Season*__ : ${show.title}\n----------------------------------------`							
+		checkRecentShows(function(newShows) {
+			newShows.forEach(function(show) {
+				monitoringChannels.forEach(function(channelID) {
+					if (show.grandparent_title == "") {
+						bot.sendMessage({
+							to: channelID,
+							message: `----------------------------------------\n**New Series Added** - ${show.parent_title}\n__*Season*__ : ${show.title}\n----------------------------------------`							
+						});
+					} else {
+						bot.sendMessage({
+							to: channelID,
+							message: `----------------------------------------\n**New Episode Added** - ${show.grandparent_title}\n__*Title*__ : ${show.title}\n__*Season*__ : ${show.parent_title}\n__*Summary*__ : ${show.summary}\n----------------------------------------`							
+						});
+					}
 				});
-			} else {
-				bot.sendMessage({
-					to: channelID,
-					message: `----------------------------------------\n**New Episode Added** - ${show.grandparent_title}\n__*Title*__ : ${show.title}\n__*Season*__ : ${show.parent_title}\n__*Summary*__ : ${show.summary}\n----------------------------------------`							
+			});
+			createMailOptions(newMovies, newShows, function(mailOptions) {
+				logger.info('mail')
+				transporter.sendMail(mailOptions, function (err, info) {
+				   if(err)
+					 console.log(err)
+				   else
+					 console.log(info);
 				});
-			}
+			});
 		});
 	});
 }
@@ -268,7 +339,7 @@ function checkRecentMovies(callback) {
 	apiResource.getRecentlyAddedMovies(function(movies) {
 		var newMovies = compareAndGetNewElements(oldMovies, movies);
 		oldMovies = movies;
-		return callback(newMovies);
+		return callback(oldMovies);
 	});
 }
 
@@ -276,7 +347,7 @@ function checkRecentShows(callback) {
 	apiResource.getRecentlyAddedShows(function(shows) {
 		var newShows = compareAndGetNewElements(oldShows, shows);
 		oldShows = shows;
-		return callback(newShows);
+		return callback(oldShows);
 	});
 }
 
@@ -294,4 +365,40 @@ function compareAndGetNewElements(oldSet, newSet) {
 		}
 	});
 	return newElements;
+}
+
+function createMailOptions(movies, shows, callback) {
+	var recipients = "";
+	monitoringEmails.forEach(function(email) {
+		recipients = recipients.concat(email, ',');
+	});
+	recipients = recipients.slice(0, -1);
+	
+	movieSection = "<h3>New Movies</h3>";
+	movies.forEach(function(movie) {
+		var string = `<div><h5>${movie.title} - ${movie.year}</h5><p>${movie.summary}</p></div>`;
+		movieSection = movieSection.concat(string);
+	});
+	
+	showSection = "<h3>New Series</h3>";
+	episodeSection = "<h3>New Episodes</h3>";
+	shows.forEach(function(show) {
+		if (show.grandparent_title == "") {
+			var string = `<div><h5>${show.parent_title}</h5><p>Season: ${show.title}</p></div>`;
+			showSection = showSection.concat(string);
+		} else {
+			var string = `<div><h5${show.grandparent_title} - ${show.title}</h5><p>Season: ${show.parent_title}<br />${show.summary}</p></div>`;
+			episodeSection = episodeSection.concat(string);
+		}
+	});
+	
+	htmlbody = "<h1>New Items Added to Deep Media Plex!<h1><br />".concat(movieSection, showSection, episodeSection);
+	logger.info(recipients)
+	var mailOptions = {
+		from: auth.email,
+		to: recipients,
+		subject: 'Deep Media Plex - New Items',
+		html: htmlbody
+	};
+	return callback(mailOptions);
 }

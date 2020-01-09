@@ -1,5 +1,6 @@
 var config = require('./config.json');
 var http = require('http');
+var logger = require('winston');
 
 function getRecentlyAddedMovies(callback) {
 	doAPICall('get_recently_added&count=20&media_type=movie', function(jsonResult) {
