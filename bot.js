@@ -1,8 +1,11 @@
+var fs = require('fs');
 var Discord = require('discord.io');
 var logger = require('winston');
 var nodemailer = require("nodemailer");
 var auth = require('./auth.json');
+var savedData = require('./savedData/savedData.json')
 var apiResource = require('./apiResource.js')
+var htmlResource = require('./htmlResource.js')
 
 var transporter = nodemailer.createTransport({
 	service: 'gmail',
@@ -12,11 +15,12 @@ var transporter = nodemailer.createTransport({
 	}
 });
 
-var oldMovies = new Set();
-var oldShows = new Set();
+var oldMovies = new Set(savedData.oldMovies);
+var oldShows = new Set(savedData.oldShows);
 
-var monitoringChannels = new Set();
-var monitoringEmails = new Set();
+var monitoringChannels = savedData.channels;
+var monitoringEmails = savedData.notificaton_emails;
+var newsletterEmails = savedData.newsletter_emails;
 
 // Configure logger settings
 logger.remove(logger.transports.Console);
@@ -34,8 +38,8 @@ bot.on('ready', function (evt) {
     logger.info('Connected');
     logger.info('Logged in as: ');
     logger.info(bot.username + ' - (' + bot.id + ')');
-	//setInterval(function(){monitoringAction()}, 1000*60*60);
-	setInterval(function(){monitoringAction()}, 3000);
+	setInterval(function(){monitoringAction()}, 1000*60*60*3);
+	//setInterval(function(){monitoringAction()}, 3000);
 });
 bot.on('message', function (user, userID, channelID, message, evt) {
     // It will listen for messages that will start with `!`
@@ -88,12 +92,13 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 });
 
 function startMonitoring(channelID) {
-	if(!monitoringChannels.has(channelID)) {
-		monitoringChannels.add(channelID);
+	if(!monitoringChannels.some(e => e === channelID)) {
+		monitoringChannels.push(channelID);
 		bot.sendMessage({
 			to: channelID,
 			message: 'Now monitoring Plex server for newly added movies and shows.'
 		});	
+		updateSavedDataFile();
 	} else {
 		bot.sendMessage({
 			to: channelID,
@@ -103,12 +108,13 @@ function startMonitoring(channelID) {
 }
 
 function stopMonitoring(channelID) {
-	if(monitoringChannels.has(channelID)) {
-		monitoringChannels.delete(channelID);
+	if(monitoringChannels.some(e => e === channelID)) {
+		delete monitoringChannels[channelID];
 		bot.sendMessage({
 			to: channelID,
 			message: 'Monitoring for Plex server has stopped.'
 		});
+		updateSavedDataFile();
 	} else {
 		bot.sendMessage({
 			to: channelID,
@@ -119,12 +125,13 @@ function stopMonitoring(channelID) {
 
 function subscribe(channelID, email) {
 	if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-		if(!monitoringEmails.has(email)) {
-			monitoringEmails.add(email);
+		if(!monitoringEmails.some(e => e === email)) {
+			monitoringEmails.push (email);
 			bot.sendMessage({
 				to: channelID,
 				message: `${email} is now subscribed to Plex sever!`
 			});	
+			updateSavedDataFile();
 		} else {
 			bot.sendMessage({
 				to: channelID,
@@ -141,12 +148,13 @@ function subscribe(channelID, email) {
 
 function unsubscribe(channelID, email) {
 	if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-		if(monitoringEmails.has(email)) {
-			monitoringEmails.delete(email);
+		if(monitoringEmails.some(e => e === email)) {
+			delete monitoringEmails[email];
 			bot.sendMessage({
 				to: channelID,
 				message: `${email} has now been unsubscribed from Plex sever!`
 			});	
+			updateSavedDataFile();
 		} else {
 			bot.sendMessage({
 				to: channelID,
@@ -322,15 +330,17 @@ function monitoringAction() {
 					}
 				});
 			});
-			createMailOptions(newMovies, newShows, function(mailOptions) {
-				logger.info('mail')
-				transporter.sendMail(mailOptions, function (err, info) {
-				   if(err)
-					 console.log(err)
-				   else
-					 console.log(info);
+			if (newMovies.size != 0 && newShows.size != 0) {
+				createNewItemsMailOptions(newMovies, newShows, function(mailOptions) {
+					transporter.sendMail(mailOptions, function (err, info) {
+					   if(err)
+						 console.log(err)
+					   else
+						 console.log(info);
+					});
+					updateSavedDataFile()
 				});
-			});
+			}
 		});
 	});
 }
@@ -339,7 +349,7 @@ function checkRecentMovies(callback) {
 	apiResource.getRecentlyAddedMovies(function(movies) {
 		var newMovies = compareAndGetNewElements(oldMovies, movies);
 		oldMovies = movies;
-		return callback(oldMovies);
+		return callback(newMovies);
 	});
 }
 
@@ -347,7 +357,7 @@ function checkRecentShows(callback) {
 	apiResource.getRecentlyAddedShows(function(shows) {
 		var newShows = compareAndGetNewElements(oldShows, shows);
 		oldShows = shows;
-		return callback(oldShows);
+		return callback(newShows);
 	});
 }
 
@@ -367,38 +377,103 @@ function compareAndGetNewElements(oldSet, newSet) {
 	return newElements;
 }
 
-function createMailOptions(movies, shows, callback) {
+function createNewItemsMailOptions(movies, shows, callback) {
 	var recipients = "";
 	monitoringEmails.forEach(function(email) {
 		recipients = recipients.concat(email, ',');
 	});
 	recipients = recipients.slice(0, -1);
 	
-	movieSection = "<h3>New Movies</h3>";
-	movies.forEach(function(movie) {
-		var string = `<div><h5>${movie.title} - ${movie.year}</h5><p>${movie.summary}</p></div>`;
-		movieSection = movieSection.concat(string);
+	newMoviesHtml(movies, function(movieSection) {
+		newEpisodesAndShowsHtml(shows, function(showAndEpisodeSection) {
+			htmlbody = "".concat(htmlResource.newItemsIntro(), movieSection, htmlResource.newItemsMiddle(), showAndEpisodeSection, htmlResource.newItemsEnd());
+			var mailOptions = {
+				from: auth.email,
+				to: recipients,
+				subject: 'Deep Media Plex - New Items',
+				html: htmlbody
+			};
+			return callback(mailOptions);
+		});
 	});
+}
+
+
+function updateSavedDataFile() {
+	var json = {"notificaton_emails": monitoringEmails, "newsletter_emails": newsletterEmails, "channels": monitoringChannels, "oldMovies": Array.from(oldMovies), "oldShows": Array.from(oldShows) };
+	fs.writeFileSync('./savedData/savedData.json', JSON.stringify(json, null, 2));
+}
+
+function newMoviesHtml(movies, callback) {
+	var moviesHtml = ""
+	movies.forEach(function(movie) {
+		var string = `<div class="gl-contains-text">
+					<table width="100%" style="min-width: 100%;" cellpadding="0" cellspacing="0" border="0">
+					<tbody>
+					<tr>
+					<td class="editor-text " align="left" valign="top" style="font-family: Arial, Verdana, Helvetica, sans-serif; font-size: 12px; color: #403F42; text-align: left; display: block; word-wrap: break-word; line-height: 1.2; padding: 10px 20px;">
+					<div></div>
+					<div class="text-container galileo-ap-content-editor"><div>
+					<div><span style="font-weight: bold;">${movie.title} - ${movie.year}</span></div>
+					<div>${movie.summary}</div>
+					</div></div>
+					</td>
+					</tr>
+					</tbody>
+					</table>
+					</div>`;
+		moviesHtml = moviesHtml.concat(string);
+	});
+	var htmlString = "".concat(htmlResource.newMoviesStart(), moviesHtml, htmlResource.newMoviesEnd());
+	return callback(htmlString);
+}
+
+function newEpisodesAndShowsHtml(shows, callback) {	
+	var showsHtml = "";
+	var episodesHtml = "";
 	
-	showSection = "<h3>New Series</h3>";
-	episodeSection = "<h3>New Episodes</h3>";
 	shows.forEach(function(show) {
 		if (show.grandparent_title == "") {
-			var string = `<div><h5>${show.parent_title}</h5><p>Season: ${show.title}</p></div>`;
-			showSection = showSection.concat(string);
+			var parentTitle = "";
+			if (show.parent_title != "") {
+				parentTitle = `${show.parentTitle} - `;
+			}
+			var string = `<div class="gl-contains-text">
+						<table width="100%" style="min-width: 100%;" cellpadding="0" cellspacing="0" border="0">
+						<tbody>
+						<tr>
+						<td class="editor-text " align="left" valign="top" style="font-family: Arial, Verdana, Helvetica, sans-serif; font-size: 12px; color: #403F42; text-align: left; display: block; word-wrap: break-word; line-height: 1.2; padding: 10px 20px;">
+						<div></div>
+						<div class="text-container galileo-ap-content-editor"><div><div><span style="font-weight: bold;">${parentTitle}${show.title}</span></div></div></div>
+						</td>
+						</tr>
+						</tbody>
+						</table>
+						</div>`;
+			showsHtml = showsHtml.concat(string);
 		} else {
-			var string = `<div><h5${show.grandparent_title} - ${show.title}</h5><p>Season: ${show.parent_title}<br />${show.summary}</p></div>`;
-			episodeSection = episodeSection.concat(string);
+			var string = `<div class="gl-contains-text">
+						<table width="100%" style="min-width: 100%;" cellpadding="0" cellspacing="0" border="0">
+						<tbody>
+						<tr>
+						<td class="editor-text " align="left" valign="top" style="font-family: Arial, Verdana, Helvetica, sans-serif; font-size: 12px; color: #403F42; text-align: left; display: block; word-wrap: break-word; line-height: 1.2; padding: 10px 20px;">
+						<div></div>
+						<div class="text-container galileo-ap-content-editor"><div>
+						<div><span style="color: rgb(45, 49, 51); font-weight: bold;">${show.grandparent_title} - ${show.title}</span></div>
+						<div>
+						<span style="color: rgb(45, 49, 51); font-weight: bold;">Season: </span><span style="color: rgb(45, 49, 51);">${show.parent_title}</span>
+						</div>
+						<div><span style="color: rgb(45, 49, 51);">${show.summary}</span></div>
+						</div></div>
+						</td>
+						</tr>
+						</tbody>
+						</table>
+						</div>`;
+			episodesHtml = episodesHtml.concat(string);
 		}
 	});
 	
-	htmlbody = "<h1>New Items Added to Deep Media Plex!<h1><br />".concat(movieSection, showSection, episodeSection);
-	logger.info(recipients)
-	var mailOptions = {
-		from: auth.email,
-		to: recipients,
-		subject: 'Deep Media Plex - New Items',
-		html: htmlbody
-	};
-	return callback(mailOptions);
+	var htmlString = "".concat(htmlResource.newShowsStart(), episodesHtml, htmlResource.newShowsMiddle(), showsHtml, htmlResource.newShowsEnd());
+	return callback(htmlString);
 }
