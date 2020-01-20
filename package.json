@@ -7,6 +7,9 @@
   "scripts": {"start": "node bot.js"},
   "dependencies": {
     "discord.io": "https://github.com/woor/discord.io/tarball/gateway_v6",
+    "http": "0.0.0",
+    "https": "^1.0.0",
+    "nodemailer": "^6.4.2",
     "winston": "^3.2.1",
     "xml-js": "^1.6.11",
     "xml2json": "^0.11.2",
