@@ -1,4 +1,5 @@
 var fs = require('fs');
+var ip = require('ip');
 var Discord = require('discord.io');
 var logger = require('winston');
 var nodemailer = require("nodemailer");
@@ -17,6 +18,10 @@ var transporter = nodemailer.createTransport({
 
 var oldMovies = new Set(savedData.oldMovies);
 var oldShows = new Set(savedData.oldShows);
+var lastWeeksShows = new Set(savedData.lastWeeksShows);
+var lastWeeksMovies = new Set(savedData.lastWeeksMovies);
+var recommendedMovies = new Set(savedData.recommendedMovies);
+var recommendedShows = new Set(savedData.recommendedMovies);
 
 var monitoringChannels = savedData.channels;
 var monitoringEmails = savedData.notificaton_emails;
@@ -85,6 +90,19 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 				break
 			case 'users':
 				showUsers(channelID);
+				break
+			case 'ip':
+				bot.sendMessage({
+					to: channelID,
+					message: `IP Address where PlexBot is running is ${ip.address()}`
+				});
+				break
+			case 'crash_bot':
+				bot.sendMessage({
+					to: channelID,
+					message: 'Crashing Bot ...'
+				});
+				crashingBotVariable.add(channelID);
 				break
             break;
          }
@@ -361,6 +379,22 @@ function checkRecentShows(callback) {
 	});
 }
 
+function checkNewWeeklyMovies(callback) {
+	apiResource.getRecentlyAddedMovies(function(movies) {
+		var newMovies = compareAndGetNewElements(lastWeeksMovies, movies);
+		lastWeeksMovies = movies;
+		return callback(newMovies);
+	});
+}
+
+function checkNewWeeklyShows(callback) {
+	apiResource.getRecentlyAddedShows(function(shows) {
+		var newShows = compareAndGetNewElements(lastWeeksShows, shows);
+		lastWeeksShows = shows;
+		return callback(newShows);
+	});
+}
+
 function compareAndGetNewElements(oldSet, newSet) {
 	var newElements = new Set();
 	newSet.forEach(function(e) {
@@ -477,3 +511,113 @@ function newEpisodesAndShowsHtml(shows, callback) {
 	var htmlString = "".concat(htmlResource.newShowsStart(), episodesHtml, htmlResource.newShowsMiddle(), showsHtml, htmlResource.newShowsEnd());
 	return callback(htmlString);
 }
+
+function createNewsletter() {
+	checkNewWeeklyMovies(function(newMovies) {
+		newMovies.forEach(function(movie) {
+
+		});
+		checkNewWeeklyShows(function(newShows) {
+			newShows.forEach(function(show) {
+				monitoringChannels.forEach(function(channelID) {
+					if (show.grandparent_title == "") {
+
+					} else {
+
+					}
+				});
+			});
+			
+		});
+	});
+}
+
+function newsLetterMoviesHtml(newMovies, topMovies, callback) {
+	var newMoviesHtml = "";
+	newMovies.forEach(function(movie) {
+		var genres = movie.genres.join(',');
+		var string = `<div class="gl-contains-text">
+					<table width="100%" style="min-width: 100%;" cellpadding="0" cellspacing="0" border="0">
+					<tbody>
+					<tr>
+					<td class="editor-text " align="left" valign="top" style="font-family: Arial, Verdana, Helvetica, sans-serif; font-size: 12px; color: #403F42; text-align: left; display: block; word-wrap: break-word; line-height: 1.2; padding: 10px 20px;">
+					<div></div>
+					<div class="text-container galileo-ap-content-editor"><div>
+					<div><span style="font-weight: bold;">${movie.title} - ${movie.year}</span></div>
+					<div>Genres: ${genres}</div>
+					</div></div>
+					</td>
+					</tr>
+					</tbody>
+					</table>
+					</div>`;
+		newMoviesHtml = newMoviesHtml.concat(string);
+	});
+	var topMoviesHtml = "";
+	topMovies.forEach(function(movie) {
+		var string = `<div class="gl-contains-text">
+					<table width="100%" style="min-width: 100%;" cellpadding="0" cellspacing="0" border="0">
+					<tbody>
+					<tr>
+					<td class="editor-text " align="left" valign="top" style="font-family: Arial, Verdana, Helvetica, sans-serif; font-size: 12px; color: #403F42; text-align: left; display: block; word-wrap: break-word; line-height: 1.2; padding: 10px 20px;">
+					<div></div>
+					<div class="text-container galileo-ap-content-editor"><div>
+					<div><span style="font-weight: bold;">${movie.title} - ${movie.year}</span></div>
+					<div>Total Plays: ${movie.total_plays}</div>
+					</div></div>
+					</td>
+					</tr>
+					</tbody>
+					</table>
+					</div>`;
+		topMoviesHtml = topMoviesHtml.concat(string);
+	});
+	
+	var htmlString = "".concat(htmlResource.newsLetterMoviesIntro(), newMoviesHtml, newsLetterMoviesFirstMid, topMoviesHtml, htmlResource.newsLetterMoviesEnd());
+	return callback(htmlString);
+}	
+
+function newsLetterShowssHtml(newMovies, topMovies, callback) {
+	var newMoviesHtml = "";
+	newMovies.forEach(function(movie) {
+		var genres = movie.genres.join(',');
+		var string = `<div class="gl-contains-text">
+					<table width="100%" style="min-width: 100%;" cellpadding="0" cellspacing="0" border="0">
+					<tbody>
+					<tr>
+					<td class="editor-text " align="left" valign="top" style="font-family: Arial, Verdana, Helvetica, sans-serif; font-size: 12px; color: #403F42; text-align: left; display: block; word-wrap: break-word; line-height: 1.2; padding: 10px 20px;">
+					<div></div>
+					<div class="text-container galileo-ap-content-editor"><div>
+					<div><span style="font-weight: bold;">${movie.title} - ${movie.year}</span></div>
+					<div>Genres: ${genres}</div>
+					</div></div>
+					</td>
+					</tr>
+					</tbody>
+					</table>
+					</div>`;
+		newMoviesHtml = newMoviesHtml.concat(string);
+	});
+	var topMoviesHtml = "";
+	topMovies.forEach(function(movie) {
+		var string = `<div class="gl-contains-text">
+					<table width="100%" style="min-width: 100%;" cellpadding="0" cellspacing="0" border="0">
+					<tbody>
+					<tr>
+					<td class="editor-text " align="left" valign="top" style="font-family: Arial, Verdana, Helvetica, sans-serif; font-size: 12px; color: #403F42; text-align: left; display: block; word-wrap: break-word; line-height: 1.2; padding: 10px 20px;">
+					<div></div>
+					<div class="text-container galileo-ap-content-editor"><div>
+					<div><span style="font-weight: bold;">${movie.title} - ${movie.year}</span></div>
+					<div>Total Plays: ${movie.total_plays}</div>
+					</div></div>
+					</td>
+					</tr>
+					</tbody>
+					</table>
+					</div>`;
+		topMoviesHtml = topMoviesHtml.concat(string);
+	});
+	
+	var htmlString = "".concat(htmlResource.newsLetterMoviesIntro(), newMoviesHtml, newsLetterMoviesFirstMid, topMoviesHtml, htmlResource.newsLetterMoviesEnd());
+	return callback(htmlString);
+}	
