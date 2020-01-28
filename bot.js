@@ -423,7 +423,7 @@ function createNewItemsMailOptions(movies, shows, callback) {
 			htmlbody = "".concat(htmlResource.newItemsIntro(), movieSection, htmlResource.newItemsMiddle(), showAndEpisodeSection, htmlResource.newItemsEnd());
 			var mailOptions = {
 				from: auth.email,
-				to: recipients,
+				bcc: recipients,
 				subject: 'Deep Media Plex - New Items',
 				html: htmlbody
 			};
