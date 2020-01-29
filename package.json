@@ -4,11 +4,14 @@
   "description": "Plex bot for Deep Server",
   "main": "bot.js",
   "author": "Jonah Tollefson",
-  "scripts": {"start": "node bot.js"},
+  "scripts": {
+    "start": "node bot.js"
+  },
   "dependencies": {
     "discord.io": "https://github.com/woor/discord.io/tarball/gateway_v6",
     "http": "0.0.0",
     "https": "^1.0.0",
+    "ip": "^1.1.5",
     "nodemailer": "^6.4.2",
     "winston": "^3.2.1",
     "xml-js": "^1.6.11",
