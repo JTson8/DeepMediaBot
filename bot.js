@@ -4,6 +4,19 @@ var Discord = require('discord.io');
 var logger = require('winston');
 var nodemailer = require("nodemailer");
 var auth = require('./auth.json');
+const initialcontent = '{\n  "notificaton_emails": [],\n  "newsletter_emails": [],\n  "channels": [],\n  "oldMovies": [],\n  "oldShows": []\n}';
+try {
+	if (fs.existsSync('./savedData/savedData.json')) {
+  	}
+} catch(err) {
+	fs.writeFile('./savedData/savedData.json', initialcontent, (err) => {
+  	if (err) {
+    		console.error(err)
+    		return
+		}
+	})
+}
+
 var savedData = require('./savedData/savedData.json')
 var apiResource = require('./apiResource.js')
 var htmlResource = require('./htmlResource.js')
