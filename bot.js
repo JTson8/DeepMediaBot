@@ -56,10 +56,10 @@ bot.on('ready', function (evt) {
     logger.info('Connected');
     logger.info('Logged in as: ');
     logger.info(bot.username + ' - (' + bot.id + ')');
-    // setInterval(function () {
-    //     monitoringAction()
-    // }, 1000 * 60 * 60 * 3);
-    setInterval(function(){monitoringAction()}, 3000);
+    setInterval(function () {
+        monitoringAction()
+    }, 1000 * 60 * 60 * 3);
+    // setInterval(function(){monitoringAction()}, 3000);
 });
 bot.on('message', function (user, userID, channelID, message, evt) {
     // It will listen for messages that will start with `!`
@@ -90,7 +90,7 @@ bot.on('message', function (user, userID, channelID, message, evt) {
             case 'help':
                 bot.sendMessage({
                     to: channelID,
-                    message: '**Welcome!** I am the Deep Media Plex Bot! My current duties are to provide recently added shows and movies.\n**Commands** - Start with \'~\'\n\`latest_movies : Get information on the last 5 added movies\nlatest_shows : Get information on the last 5 added episodes\nstart_monitor : Starts monitoring the server. I will send messages whenever a new movie or show is added\nstop_monitor : Stops monitoring the server\nreport [alltime, day, week, month] : Gives a stat report within the given time frame\nuser_stats [username] : Gives stats on the given user\nuser : Gives list of all users and their ids\`'
+                    message: '**Welcome!** I am the Deep Media Plex Bot! My current duties are to provide recently added shows and movies.\n**Commands** - Start with \'~\'\n\`latest_movies : Get information on the last 5 added movies\nlatest_shows : Get information on the last 5 added episodes\nstart_monitor : Starts monitoring the server. I will send messages whenever a new movie or show is added\nstop_monitor : Stops monitoring the server\nsubscribe [email address]: Subscribes that email to a get notifications when new things are added\nunsubscribe [email address]: Unsubscribes email address from mailing list\nreport [alltime, day, week, month] : Gives a stat report within the given time frame\nuser_stats [username] : Gives stats on the given user\nuser : Gives list of all users and their ids\`'
                 });
                 break;
             case 'report':
