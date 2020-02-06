@@ -1,6 +1,6 @@
-var config = require('./config.json');
-var http = require('http');
-var logger = require('winston');
+const config = require('./config.json');
+const http = require('http');
+const logger = require('winston');
 
 function getRecentlyAddedMovies(callback) {
 	doAPICall('get_recently_added&count=20&media_type=movie', function(jsonResult) {
@@ -73,14 +73,14 @@ function home_stats(days, callback) {
 
 function user_stats(username, callback) {
 	get_user_id(username, function(userId) {
-		if (userId == "") return callback(new Map());
+		if (userId === "") return callback(new Map());
 		var userStatsMap = new Map();
 		doAPICall(`get_user_watch_time_stats&user_id=${userId}`, function(jsonResult) {
 			jsonResult.response.data.forEach(function(data) {
-				if(data.query_days == 1) userStatsMap.set('dailyWatch', data);
-				else if(data.query_days == 7) userStatsMap.set('weeklyWatch', data);
-				else if(data.query_days == 30) userStatsMap.set('monthlylWatch', data);
-				else if(data.query_days == 0) userStatsMap.set('allTimeWatch', data);
+				if(data.query_days === 1) userStatsMap.set('dailyWatch', data);
+				else if(data.query_days === 7) userStatsMap.set('weeklyWatch', data);
+				else if(data.query_days === 30) userStatsMap.set('monthlylWatch', data);
+				else if(data.query_days === 0) userStatsMap.set('allTimeWatch', data);
 			});
 			doAPICall(`get_user_ips&user_id=${userId}`, function(jsonResult) {
 				var len = 3;
@@ -110,7 +110,7 @@ function get_user_id(username, callback) {
 	doAPICall('get_user_names', function(jsonResult) {
 		var userId = "";
 		jsonResult.response.data.forEach(function(user) {
-			if (user.friendly_name == username) { userId = user.user_id; }
+			if (user.friendly_name === username) { userId = user.user_id; }
 		});
 		return callback(userId);
 	});
