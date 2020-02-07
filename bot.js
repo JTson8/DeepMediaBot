@@ -90,7 +90,7 @@ bot.on('message', function (user, userID, channelID, message, evt) {
             case 'help':
                 bot.sendMessage({
                     to: channelID,
-                    message: '**Welcome!** I am the Deep Media Plex Bot! My current duties are to provide recently added shows and movies.\n**Commands** - Start with \'~\'\n\`latest_movies : Get information on the last 5 added movies\nlatest_shows : Get information on the last 5 added episodes\nstart_monitor : Starts monitoring the server. I will send messages whenever a new movie or show is added\nstop_monitor : Stops monitoring the server\nsubscribe [email address]: Subscribes that email to a get notifications when new things are added\nunsubscribe [email address]: Unsubscribes email address from mailing list\nreport [alltime, day, week, month] : Gives a stat report within the given time frame\nuser_stats [username] : Gives stats on the given user\nuser : Gives list of all users and their ids\`'
+                    message: '**Welcome!** I am the Deep Media Plex Bot! My current duties are to provide recently added shows and movies.\n**Commands** - Start with \'~\'\n\`latest_movies : Get information on the last 5 added movies\nlatest_shows : Get information on the last 5 added episodes\nstart_monitor : Starts monitoring the server. I will send messages whenever a new movie or show is added\nstop_monitor : Stops monitoring the server\nsubscribe [email address]: Subscribes that email to a get notifications when new things are added\nunsubscribe [email address]: Unsubscribes email address from mailing list\nreport [alltime, day, week, month] : Gives a stat report within the given time frame\nuser_stats [username] : Gives stats on the given user\nusers : Gives list of all users and their ids\`'
                 });
                 break;
             case 'report':
@@ -206,7 +206,7 @@ function showRecentlyAddedMovies(channelID) {
         movies.forEach(function (movie) {
             bot.sendMessage({
                 to: channelID,
-                message: `----------------------------------------\n**Recently Added Movie** - ${movie.title}\n__*Year*__ : ${movie.year}\n__*Summary*__ : ${movie.summary}\n----------------------------------------`
+                message: `----------------------------------------\n**Recently Added Movie** - ${movie.title}\n__*Year*__ : ${movie.year}\n__*Summary*__ : ||${movie.summary}||\n----------------------------------------`
             });
         });
     });
@@ -223,7 +223,7 @@ function showRecentlyAddedShows(channelID) {
             } else {
                 bot.sendMessage({
                     to: channelID,
-                    message: `----------------------------------------\n**Recently Added Episode** - ${show.grandparent_title}\n__*Title*__ : ${show.title}\n__*Season*__ : ${show.parent_title}\n__*Summary*__ : ${show.summary}\n----------------------------------------`
+                    message: `----------------------------------------\n**Recently Added Episode** - ${show.grandparent_title}\n__*Title*__ : ${show.title}\n__*Season*__ : ${show.parent_title}\n__*Summary*__ : ||${show.summary}||\n----------------------------------------`
                 });
             }
         });
@@ -340,7 +340,7 @@ function monitoringAction() {
             monitoringChannels.forEach(function (channelID) {
                 bot.sendMessage({
                     to: channelID,
-                    message: `----------------------------------------\n**Movie Added** - ${movie.title}\n__*Year*__ : ${movie.year}\n__*Summary*__ : ${movie.summary}\n----------------------------------------`
+                    message: `----------------------------------------\n**Movie Added** - ${movie.title}\n__*Year*__ : ${movie.year}\n__*Summary*__ : ||${movie.summary}||\n----------------------------------------`
                 });
             });
         });
@@ -355,7 +355,7 @@ function monitoringAction() {
                     } else {
                         bot.sendMessage({
                             to: channelID,
-                            message: `----------------------------------------\n**New Episode Added** - ${show.grandparent_title}\n__*Title*__ : ${show.title}\n__*Season*__ : ${show.parent_title}\n__*Summary*__ : ${show.summary}\n----------------------------------------`
+                            message: `----------------------------------------\n**New Episode Added** - ${show.grandparent_title}\n__*Title*__ : ${show.title}\n__*Season*__ : ${show.parent_title}\n__*Summary*__ : ||${show.summary}||\n----------------------------------------`
                         });
                     }
                 });
@@ -467,7 +467,7 @@ function newMoviesHtml(movies, callback) {
 					<div></div>
 					<div class="text-container galileo-ap-content-editor"><div>
 					<div><span style="font-weight: bold;">${movie.title} - ${movie.year}</span></div>
-					<div>${movie.summary}</div>
+					<div class="spoilerShow"><div>${movie.summary}</div></div>
 					</div></div>
 					</td>
 					</tr>
@@ -515,7 +515,7 @@ function newEpisodesAndShowsHtml(shows, callback) {
 						<div>
 						<span style="color: rgb(45, 49, 51); font-weight: bold;">Season: </span><span style="color: rgb(45, 49, 51);">${show.parent_title}</span>
 						</div>
-						<div><span style="color: rgb(45, 49, 51);">${show.summary}</span></div>
+						<div class="spoilerShow"></div><div><span style="color: rgb(45, 49, 51);">${show.summary}</span></div></div>
 						</div></div>
 						</td>
 						</tr>
