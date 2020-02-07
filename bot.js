@@ -360,7 +360,7 @@ function monitoringAction() {
                     }
                 });
             });
-            if (newMovies.size !== 0 && newShows.size !== 0) {
+            if (newMovies.size !== 0 || newShows.size !== 0) {
                 createNewItemsMailOptions(newMovies, newShows, function (mailOptions) {
                     transporter.sendMail(mailOptions, function (err, info) {
                         if (err)
@@ -410,15 +410,12 @@ function checkNewWeeklyShows(callback) {
 function compareAndGetNewElements(oldSet, newSet) {
     var newElements = new Set();
     newSet.forEach(function (e) {
-        var oldElement = null;
+        newElements.add(e);
         oldSet.forEach(function (oldE) {
             if (oldE.rating_key === e.rating_key) {
-                oldElement = oldE;
+                newElements.delete(e);
             }
         });
-        if (oldElement == null) {
-            newElements.add(e);
-        }
     });
     return newElements;
 }
