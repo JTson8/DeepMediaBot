@@ -4,7 +4,7 @@ const premailer = require('premailer-api');
 const Discord = require('discord.io');
 const logger = require('winston');
 const nodemailer = require("nodemailer");
-const auth = require('./auth.json');
+const auth = require('./savedData/auth.json');
 
 if (!fs.existsSync("./savedData/savedData.json")) {
     var json = {

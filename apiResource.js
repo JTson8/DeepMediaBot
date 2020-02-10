@@ -1,4 +1,4 @@
-const config = require('./config.json');
+const config = require('./savedData/config.json');
 const http = require('http');
 const logger = require('winston');
 
