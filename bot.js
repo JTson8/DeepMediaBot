@@ -1,5 +1,6 @@
 const fs = require('fs');
 const ip = require('ip');
+const premailer = require('premailer-api');
 const Discord = require('discord.io');
 const logger = require('winston');
 const nodemailer = require("nodemailer");
@@ -429,14 +430,16 @@ function createNewItemsMailOptions(movies, shows, callback) {
 
     newMoviesHtml(movies, function (movieSection) {
         newEpisodesAndShowsHtml(shows, function (showAndEpisodeSection) {
-            htmlbody = "".concat(htmlResource.newItemsIntro(), movieSection, htmlResource.newItemsMiddle(), showAndEpisodeSection, htmlResource.newItemsEnd());
-            var mailOptions = {
-                from: auth.email,
-                bcc: recipients,
-                subject: 'Deep Media Plex - New Items',
-                html: htmlbody
-            };
-            return callback(mailOptions);
+            var htmlbody = "".concat(htmlResource.newItemsIntro(), movieSection, htmlResource.newItemsMiddle(), showAndEpisodeSection, htmlResource.newItemsEnd());
+            premailer.prepare({html: htmlbody}, function (err, email) {
+                var mailOptions = {
+                    from: auth.email,
+                    bcc: recipients,
+                    subject: 'Deep Media Plex - New Items',
+                    html: email.html
+                };
+                return callback(mailOptions);
+            });
         });
     });
 }
@@ -512,7 +515,7 @@ function newEpisodesAndShowsHtml(shows, callback) {
 						<div>
 						<span style="color: rgb(45, 49, 51); font-weight: bold;">Season: </span><span style="color: rgb(45, 49, 51);">${show.parent_title}</span>
 						</div>
-						<div class="spoilerShow"></div><div><span style="color: rgb(45, 49, 51);">${show.summary}</span></div></div>
+						<div class="spoilerShow"><div><span style="color: rgb(45, 49, 51);">${show.summary}</span></div></div>
 						</div></div>
 						</td>
 						</tr>
