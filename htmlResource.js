@@ -1,18 +1,5 @@
 function newItemsIntro() {
-	return `<style type="text/css">
-				.spoilerMoviebutton {display:block; border:none; padding: 0px 0px; margin:10px 0px; font-size:80%; font-weight: bold; color:#000000; background-color:transparent; outline:0; }
-				.spoilerMovie {overflow:hidden;}
-				.spoilerMovie > div {-webkit-transition: all 0s ease;-moz-transition: margin 0s ease;-o-transition: all 0s ease;transition: margin 0s ease;}
-				.spoilerMoviebutton[value="Show Summaries"] + .spoilerMovie > div {margin-top:-500%;}
-				.spoilerMoviebutton[value="Hide Summaries"] + .spoilerMovie {padding:5px;} 
-				
-				.spoilerShowbutton {display:block; border:none; padding: 0px 0px; margin:10px 0px; font-size:80%; font-weight: bold; color:#000000; background-color:transparent; outline:0; }
-				.spoilerShow {overflow:hidden;}
-				.spoilerShow > div {-webkit-transition: all 0s ease;-moz-transition: margin 0s ease;-o-transition: all 0s ease;transition: margin 0s ease;}
-				.spoilerShowbutton[value="Show Summaries"] + .spoilerShow > div {margin-top:-500%;}
-				.spoilerShowbutton[value="Hide Summaries"] + .spoilerShow {padding:5px;} 
-			</style> 
-			<table class="template-body" border="0" cellpadding="0" cellspacing="0" style="text-align: center; min-width: 100%;" width="100%">
+	return `<table class="template-body" border="0" cellpadding="0" cellspacing="0" style="text-align: center; min-width: 100%;" width="100%">
 			<tbody><tr>
 			<td class="preheader-container">
 			<div>
@@ -295,7 +282,6 @@ function newMoviesStart() {
 			<td class="editor-text content-text" align="left" valign="top" style="font-family: Arial, Verdana, Helvetica, sans-serif; font-size: 12px; color: #403F42; text-align: left; display: block; word-wrap: break-word; line-height: 1.2; padding: 10px 20px;">
 			<div></div>
 			<div class="text-container galileo-ap-content-editor"><div><div><span style="font-size: 14px; color: rgb(207, 143, 18); font-weight: bold;">New Movies</span></div></div></div>
-			<input class="spoilerMoviebutton" type="button" value="Show Summaries" onclick="this.value=this.value=='Show Summaries'?'Hide Summaries':'Show Summaries';">
 			</td>
 			</tr>
 			</tbody>
@@ -315,7 +301,7 @@ function newMoviesEnd() {
 			</table>`;
 }
 
-function newShowsStart() {
+function newShowsAndEpisodesStart() {
 	return `<table width="100%" cellpadding="0" cellspacing="0" border="0" class="galileo-ap-layout-editor" style="min-width: 100%;">
 			<tbody>
 			<tr>
@@ -344,15 +330,17 @@ function newShowsStart() {
 			<tbody>
 			<tr>
 			<td class="mobile-hidden layout-container" width="5" style="height: 5px; line-height: 1px; background-color: #ffffff; padding: 0;" align="center" valign="top" bgcolor="#ffffff"><img style="display: block; width: 5px; height: 5px;" alt="" width="5" height="5" border="0" hspace="0" vspace="0" src="https://imgssl.constantcontact.com/letters/images/sys/S.gif"></td>
-			<td class="split split-border editor-col OneColumnMobile" width="100%" align="left" valign="top" style="border-collapse: separate; border: 1px solid #d9d9d9;">
-			<div class="gl-contains-text">
+			<td class="split split-border editor-col OneColumnMobile" width="100%" align="left" valign="top" style="border-collapse: separate; border: 1px solid #d9d9d9;">`
+}
+
+function newEpisodesStart() {
+	return `<div class="gl-contains-text">
 			<table width="100%" style="min-width: 100%;" cellpadding="0" cellspacing="0" border="0">
 			<tbody>
 			<tr>
 			<td class="editor-text content-text" align="left" valign="top" style="font-family: Arial, Verdana, Helvetica, sans-serif; font-size: 12px; color: #403F42; text-align: left; display: block; word-wrap: break-word; line-height: 1.2; padding: 10px 20px;">
 			<div></div>
 			<div class="text-container galileo-ap-content-editor"><div><div><span style="font-size: 14px; color: rgb(207, 143, 18); font-weight: bold;">New Episodes</span></div></div></div>
-			<input class="spoilerShowbutton" type="button" value="Show Summaries" onclick="this.value=this.value=='Show Summaries'?'Hide Summaries':'Show Summaries';">
 			</td>
 			</tr>
 			</tbody>
@@ -360,7 +348,7 @@ function newShowsStart() {
 			</div>`;
 }
 
-function newShowsMiddle() {
+function newShowsAndEpisodeMiddle() {
 	return `</td>
 		<td class="mobile-hidden layout-container" width="5" style="height: 10px; line-height: 1px; background-color: #ffffff; padding: 0;" align="center" valign="top" bgcolor="#ffffff"><img style="display: block; width: 5px; height: 10px;" alt="" width="5" height="10" border="0" hspace="0" vspace="0" src="https://imgssl.constantcontact.com/letters/images/sys/S.gif"></td>
 		</tr>
@@ -408,8 +396,11 @@ function newShowsMiddle() {
 		<table width="100%" cellpadding="0" cellspacing="0" border="0">
 		<tbody>
 		<tr>
-		<td class="article editor-col OneColumnMobile" width="100%" align="left" valign="top" style="background-color: #ffffff;" bgcolor="#ffffff">
-		<div class="gl-contains-text">
+		<td class="article editor-col OneColumnMobile" width="100%" align="left" valign="top" style="background-color: #ffffff;" bgcolor="#ffffff">`
+}
+
+function newShowsStart() {
+	return `<div class="gl-contains-text">
 		<table width="100%" style="min-width: 100%;" cellpadding="0" cellspacing="0" border="0">
 		<tbody>
 		<tr>
@@ -423,7 +414,7 @@ function newShowsMiddle() {
 		</div>`;
 }
 
-function newShowsEnd() {
+function newShowsAndEpisodesEnd() {
 	return `</td>
 			</tr>
 			</tbody>
@@ -438,4 +429,4 @@ function newShowsEnd() {
 			</table>`;
 }
 
-module.exports = {newItemsIntro, newItemsMiddle, newItemsEnd, newMoviesStart, newMoviesEnd, newShowsStart, newShowsMiddle, newShowsEnd}
+module.exports = {newItemsIntro, newItemsMiddle, newItemsEnd, newMoviesStart, newMoviesEnd, newShowsAndEpisodesStart, newEpisodesStart, newShowsStart, newShowsAndEpisodeMiddle, newShowsAndEpisodesEnd};

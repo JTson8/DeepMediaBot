@@ -1,6 +1,5 @@
 const fs = require('fs');
 const ip = require('ip');
-const premailer = require('premailer-api');
 const Discord = require('discord.io');
 const logger = require('winston');
 const nodemailer = require("nodemailer");
@@ -117,6 +116,13 @@ bot.on('message', function (user, userID, channelID, message, evt) {
                 bot.sendMessage({
                     to: channelID,
                     message: 'Crashing Bot ...'
+                });
+                crashingBotVariable.add(channelID);
+                break;
+            case 'bot_last_updated':
+                bot.sendMessage({
+                    to: channelID,
+                    message: 'Bot was last updated on Feb 02 2020 at 1:55 German Time'
                 });
                 crashingBotVariable.add(channelID);
                 break;
@@ -430,16 +436,20 @@ function createNewItemsMailOptions(movies, shows, callback) {
 
     newMoviesHtml(movies, function (movieSection) {
         newEpisodesAndShowsHtml(shows, function (showAndEpisodeSection) {
-            var htmlbody = "".concat(htmlResource.newItemsIntro(), movieSection, htmlResource.newItemsMiddle(), showAndEpisodeSection, htmlResource.newItemsEnd());
-            premailer.prepare({html: htmlbody}, function (err, email) {
-                var mailOptions = {
-                    from: auth.email,
-                    bcc: recipients,
-                    subject: 'Deep Media Plex - New Items',
-                    html: email.html
-                };
-                return callback(mailOptions);
-            });
+            var htmlBody = "";
+            if (movieSection !== "" && showAndEpisodeSection !== "")
+                htmlbody = "".concat(htmlResource.newItemsIntro(), movieSection, htmlResource.newItemsMiddle(), showAndEpisodeSection, htmlResource.newItemsEnd());
+            else if (movieSection === "")
+                htmlbody = "".concat(htmlResource.newItemsIntro(), showAndEpisodeSection, htmlResource.newItemsEnd());
+            else
+                htmlbody = "".concat(htmlResource.newItemsIntro(), movieSection, htmlResource.newItemsEnd());
+            var mailOptions = {
+                from: auth.email,
+                bcc: recipients,
+                subject: 'Deep Media Plex - New Items',
+                html: htmlbody
+            };
+            return callback(mailOptions);
         });
     });
 }
@@ -457,6 +467,8 @@ function updateSavedDataFile() {
 }
 
 function newMoviesHtml(movies, callback) {
+    if (movies.length === 0)
+        return callback("");
     var moviesHtml = "";
     movies.forEach(function (movie) {
         var string = `<div class="gl-contains-text">
@@ -467,7 +479,7 @@ function newMoviesHtml(movies, callback) {
 					<div></div>
 					<div class="text-container galileo-ap-content-editor"><div>
 					<div><span style="font-weight: bold;">${movie.title} - ${movie.year}</span></div>
-					<div class="spoilerShow"><div>${movie.summary}</div></div>
+					<div>${movie.summary}</div>
 					</div></div>
 					</td>
 					</tr>
@@ -483,6 +495,9 @@ function newMoviesHtml(movies, callback) {
 function newEpisodesAndShowsHtml(shows, callback) {
     var showsHtml = "";
     var episodesHtml = "";
+
+    if (shows.length === 0)
+        return callback("");
 
     shows.forEach(function (show) {
         if (show.grandparent_title === "") {
@@ -515,7 +530,7 @@ function newEpisodesAndShowsHtml(shows, callback) {
 						<div>
 						<span style="color: rgb(45, 49, 51); font-weight: bold;">Season: </span><span style="color: rgb(45, 49, 51);">${show.parent_title}</span>
 						</div>
-						<div class="spoilerShow"><div><span style="color: rgb(45, 49, 51);">${show.summary}</span></div></div>
+						<div><span style="color: rgb(45, 49, 51);">${show.summary}</span></div>
 						</div></div>
 						</td>
 						</tr>
@@ -526,7 +541,13 @@ function newEpisodesAndShowsHtml(shows, callback) {
         }
     });
 
-    var htmlString = "".concat(htmlResource.newShowsStart(), episodesHtml, htmlResource.newShowsMiddle(), showsHtml, htmlResource.newShowsEnd());
+    var htmlString = "";
+    if (episodesHtml !== "" && showsHtml !== "")
+        htmlString = "".concat(htmlResource.newShowsAndEpisodesStart(), htmlResource.newEpisodesStart(), episodesHtml, htmlResource.newShowsAndEpisodeMiddle(), htmlResource.newShowsStart(), showsHtml, htmlResource.newShowsAndEpisodesEnd());
+    else if (episodesHtml === "")
+        htmlString = "".concat(htmlResource.newShowsAndEpisodesStart(), htmlResource.newShowsStart(), showsHtml, htmlResource.newShowsAndEpisodesEnd());
+    else
+        htmlString = "".concat(htmlResource.newShowsAndEpisodesStart(), htmlResource.newEpisodesStart(), episodesHtml, htmlResource.newShowsAndEpisodesEnd());
     return callback(htmlString);
 }
 
