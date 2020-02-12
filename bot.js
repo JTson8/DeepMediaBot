@@ -122,9 +122,8 @@ bot.on('message', function (user, userID, channelID, message, evt) {
             case 'bot_last_updated':
                 bot.sendMessage({
                     to: channelID,
-                    message: 'Bot was last updated on Feb 02 2020 at 1:55 German Time'
+                    message: 'Bot was last updated on Feb 12 2020 at 12:52 German Time'
                 });
-                crashingBotVariable.add(channelID);
                 break;
         }
     }
@@ -467,8 +466,6 @@ function updateSavedDataFile() {
 }
 
 function newMoviesHtml(movies, callback) {
-    if (movies.length === 0)
-        return callback("");
     var moviesHtml = "";
     movies.forEach(function (movie) {
         var string = `<div class="gl-contains-text">
@@ -488,6 +485,8 @@ function newMoviesHtml(movies, callback) {
 					</div>`;
         moviesHtml = moviesHtml.concat(string);
     });
+    if (moviesHtml === "")
+        return callback("");
     var htmlString = "".concat(htmlResource.newMoviesStart(), moviesHtml, htmlResource.newMoviesEnd());
     return callback(htmlString);
 }
@@ -505,7 +504,8 @@ function newEpisodesAndShowsHtml(shows, callback) {
             if (show.parent_title !== "") {
                 parentTitle = `${show.parentTitle} - `;
             }
-            var string = `<div class="gl-contains-text">
+            if (parentTitle !== "undefined") {
+                var string = `<div class="gl-contains-text">
 						<table width="100%" style="min-width: 100%;" cellpadding="0" cellspacing="0" border="0">
 						<tbody>
 						<tr>
@@ -517,7 +517,8 @@ function newEpisodesAndShowsHtml(shows, callback) {
 						</tbody>
 						</table>
 						</div>`;
-            showsHtml = showsHtml.concat(string);
+                showsHtml = showsHtml.concat(string);
+            }
         } else {
             var string = `<div class="gl-contains-text">
 						<table width="100%" style="min-width: 100%;" cellpadding="0" cellspacing="0" border="0">
@@ -546,8 +547,10 @@ function newEpisodesAndShowsHtml(shows, callback) {
         htmlString = "".concat(htmlResource.newShowsAndEpisodesStart(), htmlResource.newEpisodesStart(), episodesHtml, htmlResource.newShowsAndEpisodeMiddle(), htmlResource.newShowsStart(), showsHtml, htmlResource.newShowsAndEpisodesEnd());
     else if (episodesHtml === "")
         htmlString = "".concat(htmlResource.newShowsAndEpisodesStart(), htmlResource.newShowsStart(), showsHtml, htmlResource.newShowsAndEpisodesEnd());
-    else
+    else if (showsHtml === "")
         htmlString = "".concat(htmlResource.newShowsAndEpisodesStart(), htmlResource.newEpisodesStart(), episodesHtml, htmlResource.newShowsAndEpisodesEnd());
+    else
+        htmlString = "";
     return callback(htmlString);
 }
 
