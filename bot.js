@@ -122,7 +122,14 @@ bot.on('message', function (user, userID, channelID, message, evt) {
             case 'bot_last_updated':
                 bot.sendMessage({
                     to: channelID,
-                    message: 'Bot was last updated on Feb 12 2020 at 12:52 German Time'
+                    message: 'Bot was last updated on Feb 12 2020 at 15:39 German Time'
+                });
+                break;
+            case 'trigger_email':
+                emailTest(args.join(' '));
+                bot.sendMessage({
+                    to: channelID,
+                    message: 'Sent test email to Jonah'
                 });
                 break;
         }
@@ -426,11 +433,16 @@ function compareAndGetNewElements(oldSet, newSet) {
     return newElements;
 }
 
-function createNewItemsMailOptions(movies, shows, callback) {
+function createNewItemsMailOptions(movies, shows, testMode, callback) {
     var recipients = "";
-    monitoringEmails.forEach(function (email) {
-        recipients = recipients.concat(email, ',');
-    });
+
+    if (testMode)
+        recipients = "jtollefson8@gmail.com";
+    else {
+        monitoringEmails.forEach(function (email) {
+            recipients = recipients.concat(email, ',');
+        });
+    }
     recipients = recipients.slice(0, -1);
 
     newMoviesHtml(movies, function (movieSection) {
@@ -674,4 +686,35 @@ function msToTime(duration) {
     var mDis = m < 10 ? "0" + m : m;
     var sDis = s < 10 ? "0" + s : s;
     return hDis + ":" + mDis + ":" + sDis;
+}
+
+function emailTest(arg) {
+    if (arg === "movie_only") {
+        createNewItemsMailOptions(oldMovies, [], true, function (mailOptions) {
+            transporter.sendMail(mailOptions, function (err, info) {
+                if (err)
+                    console.log(err);
+                else
+                    console.log(info);
+            });
+        });
+    } else if (arg === "shows_only") {
+        createNewItemsMailOptions([], oldShows, true, function (mailOptions) {
+            transporter.sendMail(mailOptions, function (err, info) {
+                if (err)
+                    console.log(err);
+                else
+                    console.log(info);
+            });
+        });
+    } else {
+        createNewItemsMailOptions(oldMovies, oldShows, true, function (mailOptions) {
+            transporter.sendMail(mailOptions, function (err, info) {
+                if (err)
+                    console.log(err);
+                else
+                    console.log(info);
+            });
+        });
+    }
 }
