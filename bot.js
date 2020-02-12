@@ -374,7 +374,7 @@ function monitoringAction() {
                 });
             });
             if (newMovies.size !== 0 || newShows.size !== 0) {
-                createNewItemsMailOptions(newMovies, newShows, function (mailOptions) {
+                createNewItemsMailOptions(newMovies, newShows, false, function (mailOptions) {
                     transporter.sendMail(mailOptions, function (err, info) {
                         if (err)
                             console.log(err);
@@ -689,7 +689,7 @@ function msToTime(duration) {
 }
 
 function emailTest(arg) {
-    if (arg === "movie_only") {
+    if (arg == "movie_only") {
         createNewItemsMailOptions(oldMovies, [], true, function (mailOptions) {
             transporter.sendMail(mailOptions, function (err, info) {
                 if (err)
@@ -698,7 +698,7 @@ function emailTest(arg) {
                     console.log(info);
             });
         });
-    } else if (arg === "shows_only") {
+    } else if (arg == "shows_only") {
         createNewItemsMailOptions([], oldShows, true, function (mailOptions) {
             transporter.sendMail(mailOptions, function (err, info) {
                 if (err)
