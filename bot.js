@@ -442,8 +442,8 @@ function createNewItemsMailOptions(movies, shows, testMode, callback) {
         monitoringEmails.forEach(function (email) {
             recipients = recipients.concat(email, ',');
         });
+        recipients = recipients.slice(0, -1);
     }
-    recipients = recipients.slice(0, -1);
 
     newMoviesHtml(movies, function (movieSection) {
         newEpisodesAndShowsHtml(shows, function (showAndEpisodeSection) {
