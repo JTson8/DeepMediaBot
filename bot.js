@@ -70,7 +70,7 @@ bot.on('message', function (user, userID, channelID, message, evt) {
         args = args.splice(1);
         switch (cmd) {
             case 'request':
-                sendRequest(channelID, args.join((' ')));
+                sendRequest(channelID, args.join(' '));
                 break;
             case 'latest_movies':
                 showRecentlyAddedMovies(channelID);
