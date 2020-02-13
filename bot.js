@@ -69,6 +69,9 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 
         args = args.splice(1);
         switch (cmd) {
+            case 'request':
+                sendRequest(channelID, args.join((' ')));
+                break;
             case 'latest_movies':
                 showRecentlyAddedMovies(channelID);
                 break;
@@ -135,6 +138,14 @@ bot.on('message', function (user, userID, channelID, message, evt) {
         }
     }
 });
+
+function sendRequest(channelID, request) {
+    bot.users.get('139462400658112513').send(`Plex Request: ${request}`);
+    bot.sendMessage({
+        to: channelID,
+        message: 'Request sent to Plex Admin.'
+    });
+}
 
 function startMonitoring(channelID) {
     if (!monitoringChannels.some(e => e === channelID)) {
@@ -351,9 +362,13 @@ function monitoringAction() {
     checkRecentMovies(function (newMovies) {
         newMovies.forEach(function (movie) {
             monitoringChannels.forEach(function (channelID) {
+                var summary = "";
+                if (movie.summary != "") {
+                    summary = `__*Summary*__ : ||${movie.summary}||\\n`
+                }
                 bot.sendMessage({
                     to: channelID,
-                    message: `----------------------------------------\n**Movie Added** - ${movie.title}\n__*Year*__ : ${movie.year}\n__*Summary*__ : ||${movie.summary}||\n----------------------------------------`
+                    message: `----------------------------------------\n**Movie Added** - ${movie.title}\n__*Year*__ : ${movie.year}\n${summary}----------------------------------------`
                 });
             });
         });
@@ -366,9 +381,13 @@ function monitoringAction() {
                             message: `----------------------------------------\n**New Series Added** - ${show.parent_title}\n__*Season*__ : ${show.title}\n----------------------------------------`
                         });
                     } else {
+                        var summary = "";
+                        if (show.summary != "") {
+                            summary = `__*Summary*__ : ||${show.summary}||\\n`
+                        }
                         bot.sendMessage({
                             to: channelID,
-                            message: `----------------------------------------\n**New Episode Added** - ${show.grandparent_title}\n__*Title*__ : ${show.title}\n__*Season*__ : ${show.parent_title}\n__*Summary*__ : ||${show.summary}||\n----------------------------------------`
+                            message: `----------------------------------------\n**New Episode Added** - ${show.grandparent_title}\n__*Title*__ : ${show.title}\n__*Season*__ : ${show.parent_title}\n${summary}----------------------------------------`
                         });
                     }
                 });
@@ -516,7 +535,7 @@ function newEpisodesAndShowsHtml(shows, callback) {
             if (show.parent_title !== "") {
                 parentTitle = `${show.parentTitle} - `;
             }
-            if (parentTitle !== "undefined") {
+            if (!parentTitle.startsWith("undefined") && !show.title.startsWith("undefined")) {
                 var string = `<div class="gl-contains-text">
 						<table width="100%" style="min-width: 100%;" cellpadding="0" cellspacing="0" border="0">
 						<tbody>
