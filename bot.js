@@ -125,7 +125,7 @@ bot.on('message', function (user, userID, channelID, message, evt) {
             case 'bot_last_updated':
                 bot.sendMessage({
                     to: channelID,
-                    message: 'Bot was last updated on Feb 12 2020 at 15:39 German Time'
+                    message: 'Bot was last updated on Feb 13 2020 at 9:37 German Time'
                 });
                 break;
             case 'trigger_email':
