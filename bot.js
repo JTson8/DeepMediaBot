@@ -70,7 +70,7 @@ bot.on('message', function (user, userID, channelID, message, evt) {
         args = args.splice(1);
         switch (cmd) {
             case 'request':
-                sendRequest(channelID, args.join(' '));
+                sendRequest(channelID, user, args.join(' '));
                 break;
             case 'latest_movies':
                 showRecentlyAddedMovies(channelID);
@@ -139,10 +139,10 @@ bot.on('message', function (user, userID, channelID, message, evt) {
     }
 });
 
-function sendRequest(channelID, request) {
+function sendRequest(channelID, user, request) {
     bot.sendMessage({
         to: '139462400658112513',
-        message: `From: ${bot.username}\nPlex Request: ${request}`
+        message: `From: ${user}\nPlex Request: ${request}`
     });
     bot.sendMessage({
         to: channelID,
