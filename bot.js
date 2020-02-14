@@ -125,7 +125,7 @@ bot.on('message', function (user, userID, channelID, message, evt) {
             case 'bot_last_updated':
                 bot.sendMessage({
                     to: channelID,
-                    message: 'Bot was last updated on Feb 13 2020 at 9:37 German Time'
+                    message: 'Bot was last updated on Feb 14 2020 at 9:40 German Time'
                 });
                 break;
             case 'trigger_email':
@@ -140,7 +140,10 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 });
 
 function sendRequest(channelID, request) {
-    bot.users['139462400658112513'].send(`Plex Request: ${request}`);
+    bot.sendMessage({
+        to: '139462400658112513',
+        message: `Plex Request: ${request}`
+    });
     bot.sendMessage({
         to: channelID,
         message: 'Request sent to Plex Admin.'
