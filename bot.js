@@ -140,7 +140,7 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 });
 
 function sendRequest(channelID, request) {
-    bot.users.get('139462400658112513').send(`Plex Request: ${request}`);
+    bot.users['139462400658112513'].send(`Plex Request: ${request}`);
     bot.sendMessage({
         to: channelID,
         message: 'Request sent to Plex Admin.'
