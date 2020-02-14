@@ -125,7 +125,7 @@ bot.on('message', function (user, userID, channelID, message, evt) {
             case 'bot_last_updated':
                 bot.sendMessage({
                     to: channelID,
-                    message: 'Bot was last updated on Feb 14 2020 at 9:40 German Time'
+                    message: 'Bot was last updated on Feb 14 2020 at 10:56 German Time'
                 });
                 break;
             case 'trigger_email':
@@ -142,7 +142,7 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 function sendRequest(channelID, request) {
     bot.sendMessage({
         to: '139462400658112513',
-        message: `Plex Request: ${request}`
+        message: `From: ${bot.username}\nPlex Request: ${request}`
     });
     bot.sendMessage({
         to: channelID,
