@@ -125,7 +125,7 @@ bot.on('message', function (user, userID, channelID, message, evt) {
             case 'bot_last_updated':
                 bot.sendMessage({
                     to: channelID,
-                    message: 'Bot was last updated on Feb 14 2020 at 10:56 German Time'
+                    message: 'Bot was last updated on Feb 24 2020 at 13:23 German Time'
                 });
                 break;
             case 'trigger_email':
@@ -387,7 +387,7 @@ function monitoringAction() {
                     } else {
                         var summary = "";
                         if (show.summary != "") {
-                            summary = `__*Summary*__ : ||${show.summary}||\\n`
+                            summary = `__*Summary*__ : ||${show.summary}||\n`
                         }
                         bot.sendMessage({
                             to: channelID,
@@ -398,12 +398,14 @@ function monitoringAction() {
             });
             if (newMovies.size !== 0 || newShows.size !== 0) {
                 createNewItemsMailOptions(newMovies, newShows, false, function (mailOptions) {
-                    transporter.sendMail(mailOptions, function (err, info) {
-                        if (err)
-                            console.log(err);
-                        else
-                            console.log(info);
-                    });
+                    if (mailOptions != null) {
+                        transporter.sendMail(mailOptions, function (err, info) {
+                            if (err)
+                                console.log(err);
+                            else
+                                console.log(info);
+                        });
+                    }
                     updateSavedDataFile()
                 });
             }
@@ -475,8 +477,11 @@ function createNewItemsMailOptions(movies, shows, testMode, callback) {
                 htmlbody = "".concat(htmlResource.newItemsIntro(), movieSection, htmlResource.newItemsMiddle(), showAndEpisodeSection, htmlResource.newItemsEnd());
             else if (movieSection === "")
                 htmlbody = "".concat(htmlResource.newItemsIntro(), showAndEpisodeSection, htmlResource.newItemsEnd());
-            else
+            else if (showAndEpisodeSection === "")
                 htmlbody = "".concat(htmlResource.newItemsIntro(), movieSection, htmlResource.newItemsEnd());
+            else
+                return callback(null);
+
             var mailOptions = {
                 from: auth.email,
                 bcc: recipients,
