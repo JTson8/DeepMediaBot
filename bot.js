@@ -65,8 +65,8 @@ bot.on('ready', function (evt) {
     // setInterval(function(){monitoringAction()}, 3000);
 });
 
-bot.on('message', messageObject => function (user, userID, channelID, message, evt) {
-    // It will listen for messages that will start with `!`
+bot.on('message', function (user, userID, channelID, message, evt) {
+    // It will listen for messages that will start with `~`
     if (message.substring(0, 1) === '~') {
         var args = message.substring(1).split(' ');
         var cmd = args[0];
@@ -142,7 +142,7 @@ bot.on('message', messageObject => function (user, userID, channelID, message, e
             case 'bot_last_updated':
                 bot.sendMessage({
                     to: channelID,
-                    message: 'Bot was last updated on Feb 28 2020 at 12:50 German Time'
+                    message: 'Bot was last updated on Feb 28 2020 at 13:28 German Time'
                 });
                 break;
             case 'trigger_email':
