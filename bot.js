@@ -89,12 +89,12 @@ bot.on('message', function (user, userID, channelID, message, evt) {
                 break;
             case 'status_update':
                 if (channelID == 116976756581203972) {
-                    statusUpdate(args[0], args[1]);
+                    statusUpdate(parseInt(args[0]), args[1]);
                 }
                 break;
             case 'status_update_test':
                 if (channelID == 139462400658112513) {
-                    statusUpdate(args[0], args[1]);
+                    statusUpdate(parseInt(args[0]), args[1]);
                 }
                 break;
             case 'latest_movies':
@@ -150,7 +150,7 @@ bot.on('message', function (user, userID, channelID, message, evt) {
             case 'bot_last_updated':
                 bot.sendMessage({
                     to: channelID,
-                    message: 'Bot was last updated on Feb 28 2020 at 13:28 German Time'
+                    message: 'Bot was last updated on Feb 28 2020 at 15:29 German Time'
                 });
                 break;
             case 'trigger_email':
@@ -189,9 +189,9 @@ function statusUpdate(requestNumId, newStatus) {
     if (requests.has(requestNumId)) {
         var plexRequest = requests[requestNumId];
         var statusMessage = "";
-        if (newStatus == 2 || newStatus == "found" || newStatus == "f") {
+        if (newStatus === "2" || newStatus === "found" || newStatus === "f") {
             statusMessage = "Status: Found"
-        } else if (newStatus == 3 || newStatus == "not_found" || newStatus == "n") {
+        } else if (newStatus === "3"|| newStatus === "not_found" || newStatus === "n") {
             statusMessage = "Status: Not Found"
         } else {
             statusMessage = "Status: Searching ..."
