@@ -21,6 +21,14 @@ const savedData = require('./savedData/savedData.json');
 const apiResource = require('./apiResource.js');
 const htmlResource = require('./htmlResource.js');
 
+class PlexRequest {
+    constructor(channelID, messageID, request) {
+        this.channelID = channelID;
+        this.messageID = messageID;
+        this.request = request;
+    }
+}
+
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
@@ -790,13 +798,5 @@ function emailTest(arg) {
                     console.log(info);
             });
         });
-    }
-}
-
-class PlexRequest {
-    constructor(channelID, messageID, request) {
-        this.channelID = channelID;
-        this.messageID = messageID;
-        this.request = request;
     }
 }
