@@ -29,6 +29,9 @@ const transporter = nodemailer.createTransport({
     }
 });
 
+var requestNum = 100;
+var requests = new Map();
+
 var oldMovies = new Set(savedData.oldMovies);
 var oldShows = new Set(savedData.oldShows);
 var lastWeeksShows = new Set(savedData.lastWeeksShows);
@@ -61,7 +64,8 @@ bot.on('ready', function (evt) {
     }, 1000 * 60 * 60 * 3);
     // setInterval(function(){monitoringAction()}, 3000);
 });
-bot.on('message', function (user, userID, channelID, message, evt) {
+
+bot.on('message', messageObject => function (user, userID, channelID, message, evt) {
     // It will listen for messages that will start with `!`
     if (message.substring(0, 1) === '~') {
         var args = message.substring(1).split(' ');
@@ -70,7 +74,20 @@ bot.on('message', function (user, userID, channelID, message, evt) {
         args = args.splice(1);
         switch (cmd) {
             case 'request':
-                sendRequest(channelID, user, args.join(' '));
+                sendRequest(channelID, user, args.join(' '), false);
+                break;
+            case 'request_test':
+                sendRequest(channelID, user, args.join(' '), true);
+                break;
+            case 'status_update':
+                if (channelID == 116976756581203972) {
+                    statusUpdate(args[0], args[1]);
+                }
+                break;
+            case 'status_update_test':
+                if (channelID == 139462400658112513) {
+                    statusUpdate(args[0], args[1]);
+                }
                 break;
             case 'latest_movies':
                 showRecentlyAddedMovies(channelID);
@@ -93,7 +110,7 @@ bot.on('message', function (user, userID, channelID, message, evt) {
             case 'help':
                 bot.sendMessage({
                     to: channelID,
-                    message: '**Welcome!** I am the Deep Media Plex Bot! My current duties are to provide recently added shows and movies.\n**Commands** - Start with \'~\'\n\`request [text]: Slides a Plex request into the Will\'s DMs. Can add any text to describe a request\nlatest_movies : Get information on the last 5 added movies\nlatest_shows : Get information on the last 5 added episodes\nstart_monitor : Starts monitoring the server. I will send messages whenever a new movie or show is added\nstop_monitor : Stops monitoring the server\nsubscribe [email address]: Subscribes that email to a get notifications when new things are added\nunsubscribe [email address]: Unsubscribes email address from mailing list\nreport [alltime, day, week, month] : Gives a stat report within the given time frame\nuser_stats [username] : Gives stats on the given user\nusers : Gives list of all users and their ids\`'
+                    message: '**Welcome!** I am the Deep Media Plex Bot! My current duties are to provide recently added shows and movies.\n**Commands** - Start with \'~\'\n\`request [text]: Slides a Plex request into the Will\'s DMs. Can add any text to describe a request\nlatest_movies : Get information on the last 5 added movies\nlatest_shows : Get information on the last 5 added episodes\nstart_monitor : Starts monitoring the server. I will send messages whenever a new movie or show is added\nstop_monitor : Stops monitoring the server\nsubscribe [email address]: Subscribes that email to a get notifications when new things are added\nunsubscribe [email address]: Unsubscribes email address from mailing list\nreport [alltime, day, week, month] : Gives a stat report within the given time frame\nuser_stats [username] : Gives stats on the given user\nusers : Gives list of all users and their ids\n (ADMIN ONLY) status_update [request id] [status]: Only available in DMs of Plex Admin. Plex admin can respond to a request with the request id and then followed with the following status options [\'s\' = searching, \'f\' = found, \'n\' = not found]. This will update the original request message with the new status.\`'
                 });
                 break;
             case 'report':
@@ -125,7 +142,7 @@ bot.on('message', function (user, userID, channelID, message, evt) {
             case 'bot_last_updated':
                 bot.sendMessage({
                     to: channelID,
-                    message: 'Bot was last updated on Feb 24 2020 at 13:23 German Time'
+                    message: 'Bot was last updated on Feb 28 2020 at 12:50 German Time'
                 });
                 break;
             case 'trigger_email':
@@ -140,15 +157,44 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 });
 
 // Slides a plex request into Will's DMs
-function sendRequest(channelID, user, request) {
+function sendRequest(channelID, user, request, test) {
+    var admin = '116976756581203972';
+    if (test)
+        admin = '139462400658112513';
     bot.sendMessage({
-        to: '116976756581203972',
-        message: `From: ${user}\nPlex Request: ${request}`
+        to: admin,
+        message: `From: ${user}\nPlex Request: ${request}\nRequest ID: ${requestNum}`
     });
     bot.sendMessage({
         to: channelID,
-        message: 'Request sent to Plex Admin.'
+        message: `Request "${request}" sent to Plex Admin.\nCheck back here for status updates on the request.`
+    }, function (err, res) {
+        requests[requestNum] = new PlexRequest(channelID, res.id, request);
+        if (requestNum === 999)
+            requestNum = 100;
+        else
+            requestNum++;
     });
+}
+
+function statusUpdate(requestNumId, newStatus) {
+    if (requests.has(requestNumId)) {
+        var plexRequest = requests[requestNumId];
+        var statusMessage = "";
+        if (newStatus == 2 || newStatus == "found" || newStatus == "f") {
+            statusMessage = "Status: Found"
+        } else if (newStatus == 3 || newStatus == "not_found" || newStatus == "n") {
+            statusMessage = "Status: Not Found"
+        } else {
+            statusMessage = "Status: Searching ..."
+        }
+
+        bot.editMessage({
+            channelID: plexRequest.channelID,
+            messageID: plexRequest.messageID,
+            message: `Request "${request}" sent to Plex Admin.\n${statusMessage}`
+        });
+    }
 }
 
 function startMonitoring(channelID) {
@@ -744,5 +790,13 @@ function emailTest(arg) {
                     console.log(info);
             });
         });
+    }
+}
+
+class PlexRequest {
+    constructor(channelID, messageID, request) {
+        this.channelID = channelID;
+        this.messageID = messageID;
+        this.request = request;
     }
 }
