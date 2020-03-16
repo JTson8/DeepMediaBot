@@ -11,7 +11,9 @@ if (!fs.existsSync("./savedData/savedData.json")) {
         "newsletter_emails": [],
         "channels": [],
         "oldMovies": [],
-        "oldShows": []
+        "oldShows": [],
+        "requestNum": 100,
+        "requests": JSON.stringify([...(new Map())])
     };
     fs.mkdir('./savedData', { recursive: true }, (err) => {if (err) throw err;});
     fs.writeFileSync('./savedData/savedData.json', JSON.stringify(json, null, 2));
@@ -37,9 +39,6 @@ const transporter = nodemailer.createTransport({
     }
 });
 
-var requestNum = 100;
-var requests = new Map();
-
 var oldMovies = new Set(savedData.oldMovies);
 var oldShows = new Set(savedData.oldShows);
 var lastWeeksShows = new Set(savedData.lastWeeksShows);
@@ -50,6 +49,17 @@ var recommendedShows = new Set(savedData.recommendedMovies);
 var monitoringChannels = savedData.channels;
 var monitoringEmails = savedData.notificaton_emails;
 var newsletterEmails = savedData.newsletter_emails;
+
+var requestNum = savedData.requestNum;
+var requests = new Map();
+
+if (!savedData.requestsNum) {
+    updateSavedDataFile();
+    requestNum = 100;
+    requests = new Map();
+} else {
+    requests = new Map(savedData.requests)
+}
 
 // Configure logger settings
 logger.remove(logger.transports.Console);
@@ -150,7 +160,7 @@ bot.on('message', function (user, userID, channelID, message, evt) {
             case 'bot_last_updated':
                 bot.sendMessage({
                     to: channelID,
-                    message: 'Bot was last updated on Feb 28 2020 at 15:29 German Time'
+                    message: 'Bot was last updated on Mar 16th 2020 at 9:50 German Time :mag:'
                 });
                 break;
             case 'trigger_email':
@@ -177,24 +187,25 @@ function sendRequest(channelID, user, request, test) {
         to: channelID,
         message: `Request "${request}" sent to Plex Admin.\nCheck back here for status updates on the request.`
     }, function (err, res) {
-        requests[requestNum] = new PlexRequest(channelID, res.id, request);
+        requests.set(requestNum, new PlexRequest(channelID, res.id, request));
         if (requestNum === 999)
             requestNum = 100;
         else
             requestNum++;
+        updateSavedDataFile();
     });
 }
 
 function statusUpdate(requestNumId, newStatus) {
     if (requests.has(requestNumId)) {
-        var plexRequest = requests[requestNumId];
+        var plexRequest = requests.get(requestNumId);
         var statusMessage = "";
         if (newStatus === "2" || newStatus === "found" || newStatus === "f") {
-            statusMessage = "Status: Found"
+            statusMessage = "Status: :white_check_mark: Found"
         } else if (newStatus === "3"|| newStatus === "not_found" || newStatus === "n") {
-            statusMessage = "Status: Not Found"
+            statusMessage = "Status: :x: Not Found"
         } else {
-            statusMessage = "Status: Searching ..."
+            statusMessage = "Status: :mag: Searching ..."
         }
 
         bot.editMessage({
@@ -549,12 +560,18 @@ function createNewItemsMailOptions(movies, shows, testMode, callback) {
 
 
 function updateSavedDataFile() {
+    var validRequestNum = 100;
+    if (requestNum)
+        validRequestNum = requestNum;
+
     var json = {
         "notificaton_emails": monitoringEmails,
         "newsletter_emails": newsletterEmails,
         "channels": monitoringChannels,
         "oldMovies": Array.from(oldMovies),
-        "oldShows": Array.from(oldShows)
+        "oldShows": Array.from(oldShows),
+        "requestNum": validRequestNum,
+        "requests": Array.from(requests)
     };
     fs.writeFileSync('./savedData/savedData.json', JSON.stringify(json, null, 2));
 }
