@@ -53,7 +53,7 @@ var newsletterEmails = savedData.newsletter_emails;
 var requestNum = savedData.requestNum;
 var requests = new Map();
 
-if (!savedData.requestsNum) {
+if (!requestNum) {
     updateSavedDataFile();
     requestNum = 100;
     requests = new Map();
@@ -567,6 +567,8 @@ function updateSavedDataFile() {
     var validRequestNum = 100;
     if (requestNum)
         validRequestNum = requestNum;
+    // requests.set(100, new PlexRequest(123, 345, "hii"));
+    // requests.set(101, new PlexRequest(111, 999, "bye"));
 
     var json = {
         "notificaton_emails": monitoringEmails,
