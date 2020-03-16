@@ -98,13 +98,13 @@ bot.on('message', function (user, userID, channelID, message, evt) {
                 sendRequest(channelID, user, args.join(' '), true);
                 break;
             case 'status_update':
-                if (channelID == 116976756581203972) {
-                    statusUpdate(parseInt(args[0]), args[1]);
+                if (userID == 116976756581203972) {
+                    statusUpdate(channelID, parseInt(args[0]), args[1]);
                 }
                 break;
             case 'status_update_test':
-                if (channelID == 139462400658112513) {
-                    statusUpdate(parseInt(args[0]), args[1]);
+                if (userID == 139462400658112513) {
+                    statusUpdate(channelID, parseInt(args[0]), args[1]);
                 }
                 break;
             case 'latest_movies':
@@ -196,7 +196,7 @@ function sendRequest(channelID, user, request, test) {
     });
 }
 
-function statusUpdate(requestNumId, newStatus) {
+function statusUpdate(channelID, requestNumId, newStatus) {
     if (requests.has(requestNumId)) {
         var plexRequest = requests.get(requestNumId);
         var statusMessage = "";
@@ -211,7 +211,11 @@ function statusUpdate(requestNumId, newStatus) {
         bot.editMessage({
             channelID: plexRequest.channelID,
             messageID: plexRequest.messageID,
-            message: `Request "${request}" sent to Plex Admin.\n${statusMessage}`
+            message: `Request "${plexRequest.request}" sent to Plex Admin.\n${statusMessage}`
+        });
+        bot.sendMessage({
+            to: channelID,
+            message: `Request Status Updated`
         });
     }
 }
