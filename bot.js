@@ -83,6 +83,11 @@ bot.on('ready', function (evt) {
     // setInterval(function(){monitoringAction()}, 3000);
 });
 
+bot.on('disconnect', function(erMsg, code) {
+    console.log('----- Bot disconnected from Discord with code', code, 'for reason:', erMsg, '-----');
+    bot.connect();
+});
+
 bot.on('message', function (user, userID, channelID, message, evt) {
     // It will listen for messages that will start with `~`
     if (message.substring(0, 1) === '~') {
