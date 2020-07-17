@@ -79,7 +79,7 @@ bot.on('ready', function (evt) {
     logger.info(bot.username + ' - (' + bot.id + ')');
     setInterval(function () {
         monitoringAction()
-    }, 1000 * 60 * 60 * 3);
+    }, 1000 * 60 * 60 * 24);
     // setInterval(function(){monitoringAction()}, 3000);
 });
 
