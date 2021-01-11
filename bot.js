@@ -1,6 +1,6 @@
 const fs = require('fs');
 const ip = require('ip');
-const Discord = require('discord.io');
+const Discord = require('discord.js');
 const logger = require('winston');
 const nodemailer = require("nodemailer");
 const auth = require('./savedData/auth.json');
@@ -24,9 +24,8 @@ const apiResource = require('./apiResource.js');
 const htmlResource = require('./htmlResource.js');
 
 class PlexRequest {
-    constructor(channelID, messageID, request) {
-        this.channelID = channelID;
-        this.messageID = messageID;
+    constructor(message, request) {
+        this.message = message;
         this.request = request;
     }
 }
@@ -46,9 +45,9 @@ var lastWeeksMovies = new Set(savedData.lastWeeksMovies);
 var recommendedMovies = new Set(savedData.recommendedMovies);
 var recommendedShows = new Set(savedData.recommendedMovies);
 
-var monitoringChannels = savedData.channels;
-var monitoringEmails = savedData.notificaton_emails;
-var newsletterEmails = savedData.newsletter_emails;
+var monitoringChannels = new Set(savedData.channels);
+var monitoringEmails = new Set(savedData.notificaton_emails);
+var newsletterEmails = new Set(savedData.newsletter_emails);
 
 var requestNum = savedData.requestNum;
 var requests = new Map();
@@ -68,27 +67,30 @@ logger.add(new logger.transports.Console, {
 });
 logger.level = 'debug';
 // Initialize Discord Bot
-var bot = new Discord.Client({
-    token: auth.token,
-    autorun: true
-});
+const bot = new Discord.Client();
 
 bot.on('ready', function (evt) {
     logger.info('Connected');
     logger.info('Logged in as: ');
-    logger.info(bot.username + ' - (' + bot.id + ')');
+    logger.info(bot.user.tag);
     setInterval(function () {
         monitoringAction()
     }, 1000 * 60 * 60 * 24);
     // setInterval(function(){monitoringAction()}, 3000);
 });
 
+bot.login(auth.token);
+
 bot.on('disconnect', function(erMsg, code) {
     console.log('----- Bot disconnected from Discord with code', code, 'for reason:', erMsg, '-----');
     bot.connect();
 });
 
-bot.on('message', function (user, userID, channelID, message, evt) {
+bot.on('message', msg => {
+	const user = msg.author;
+	const channel = msg.channel;
+	const message = msg.content;
+	
     // It will listen for messages that will start with `~`
     if (message.substring(0, 1) === '~') {
         var args = message.substring(1).split(' ');
@@ -97,242 +99,176 @@ bot.on('message', function (user, userID, channelID, message, evt) {
         args = args.splice(1);
         switch (cmd) {
             case 'request':
-                sendRequest(channelID, user, args.join(' '), false);
+                sendRequest(channel, user.username, args.join(' '), false);
                 break;
             case 'request_test':
-                sendRequest(channelID, user, args.join(' '), true);
-                break;
-            case 'status_update':
-                if (userID == 116976756581203972) {
-                    statusUpdate(channelID, parseInt(args[0]), args[1]);
-                }
-                break;
-            case 'status_update_test':
-                if (userID == 139462400658112513) {
-                    statusUpdate(channelID, parseInt(args[0]), args[1]);
-                }
+                sendRequest(channel, user.username, args.join(' '), true);
                 break;
             case 'latest_movies':
-                showRecentlyAddedMovies(channelID);
+                showRecentlyAddedMovies(channel);
                 break;
             case 'latest_shows':
-                showRecentlyAddedShows(channelID);
+                showRecentlyAddedShows(channel);
                 break;
             case 'start_monitor':
-                startMonitoring(channelID);
+                startMonitoring(channel);
                 break;
             case 'stop_monitor':
-                stopMonitoring(channelID);
+                stopMonitoring(channel);
                 break;
             case 'subscribe':
-                subscribe(channelID, args.join(' '));
+                subscribe(channel, args.join(' '));
                 break;
             case 'unsubscribe':
-                unsubscribe(channelID, args.join(' '));
+                unsubscribe(channel, args.join(' '));
                 break;
             case 'help':
-                bot.sendMessage({
-                    to: channelID,
-                    message: '**Welcome!** I am the Deep Media Plex Bot! My current duties are to provide recently added shows and movies.\n**Commands** - Start with \'~\'\n\`request [text]: Slides a Plex request into the Will\'s DMs. Can add any text to describe a request\nlatest_movies : Get information on the last 5 added movies\nlatest_shows : Get information on the last 5 added episodes\nstart_monitor : Starts monitoring the server. I will send messages whenever a new movie or show is added\nstop_monitor : Stops monitoring the server\nsubscribe [email address]: Subscribes that email to a get notifications when new things are added\nunsubscribe [email address]: Unsubscribes email address from mailing list\nreport [alltime, day, week, month] : Gives a stat report within the given time frame\nuser_stats [username] : Gives stats on the given user\nusers : Gives list of all users and their ids\n (ADMIN ONLY) status_update [request id] [status]: Only available in DMs of Plex Admin. Plex admin can respond to a request with the request id and then followed with the following status options [\'s\' = searching, \'f\' = found, \'n\' = not found]. This will update the original request message with the new status.\`'
-                });
+				channel.send(
+					'**Welcome!** I am the Deep Media Plex Bot! My current duties are to provide recently added shows and movies.\n**Commands** - Start with \'~\'\n\`request [text]: Slides a Plex request into the Will\'s DMs. Can add any text to describe a request\nlatest_movies : Get information on the last 5 added movies\nlatest_shows : Get information on the last 5 added episodes\nstart_monitor : Starts monitoring the server. I will send messages whenever a new movie or show is added\nstop_monitor : Stops monitoring the server\nsubscribe [email address]: Subscribes that email to a get notifications when new things are added\nunsubscribe [email address]: Unsubscribes email address from mailing list\nreport [alltime, day, week, month] : Gives a stat report within the given time frame\nuser_stats [username] : Gives stats on the given user\nusers : Gives list of all users and their ids\n (ADMIN ONLY) status_update [request id] [status]: Only available in DMs of Plex Admin. Plex admin can respond to a request with the request id and then followed with the following status options [\'s\' = searching, \'f\' = found, \'n\' = not found]. This will update the original request message with the new status.\`'
+                );
                 break;
             case 'report':
                 if (args.length !== 0) {
-                    showReport(channelID, args[0]);
+                    showReport(channel, args[0]);
                 } else {
-                    showReport(channelID, "alltime");
+                    showReport(channel, "alltime");
                 }
                 break;
             case 'user_stats':
-                showUserStats(channelID, args.join(' '));
+                showUserStats(channel, args.join(' '));
                 break;
             case 'users':
-                showUsers(channelID);
+                showUsers(channel);
                 break;
             case 'ip':
-                bot.sendMessage({
-                    to: channelID,
-                    message: `IP Address where PlexBot is running is ${ip.address()}`
-                });
+                channel.send(`IP Address where PlexBot is running is ${ip.address()}`);
                 break;
             case 'crash_bot':
-                bot.sendMessage({
-                    to: channelID,
-                    message: 'Crashing Bot ...'
-                });
-                crashingBotVariable.add(channelID);
+                channel.send('Crashing Bot ...');
+                crashingBotVariable.add(channel);
                 break;
             case 'bot_last_updated':
-                bot.sendMessage({
-                    to: channelID,
-                    message: 'Bot was last updated on April 6th 2020 at 11:45 German Time :mag:'
-                });
+                channel.send('Bot was last updated on April 6th 2020 at 11:45 German Time :mag:');
                 break;
             case 'trigger_email':
                 emailTest(args.join(' '));
-                bot.sendMessage({
-                    to: channelID,
-                    message: 'Sent test email to Jonah'
-                });
+                channel('Sent test email to Jonah');
                 break;
         }
     }
 });
 
+bot.on('messageReactionAdd', (reaction, user) => {
+	statusUpdate(reaction.message, reaction);	
+});
+
 // Slides a plex request into Will's DMs
-function sendRequest(channelID, user, request, test) {
-    var admin = '116976756581203972';
-    if (test)
-        admin = '139462400658112513';
-    bot.sendMessage({
-        to: admin,
-        message: `From: ${user}\nPlex Request: ${request}\nRequest ID: ${requestNum}`
-    });
-    bot.sendMessage({
-        to: channelID,
-        message: `Request "${request}" sent to Plex Admin.\nCheck back here for status updates on the request.`
-    }, function (err, res) {
-        requests.set(requestNum, new PlexRequest(channelID, res.id, request));
-        if (requestNum === 999)
-            requestNum = 100;
-        else
-            requestNum++;
-        updateSavedDataFile();
-    });
-}
-
-function statusUpdate(channelID, requestNumId, newStatus) {
-    if (requests.has(requestNumId)) {
-        var plexRequest = requests.get(requestNumId);
-        var statusMessage = "";
-        if (newStatus === "2" || newStatus === "found" || newStatus === "f") {
-            statusMessage = "Status: :white_check_mark: Found"
-        } else if (newStatus === "3"|| newStatus === "not_found" || newStatus === "n") {
-            statusMessage = "Status: :x: Not Found"
-        } else {
-            statusMessage = "Status: :mag: Searching ..."
-        }
-
-        bot.editMessage({
-            channelID: plexRequest.channelID,
-            messageID: plexRequest.messageID,
-            message: `Request "${plexRequest.request}" sent to Plex Admin.\n${statusMessage}`
-        });
-        bot.sendMessage({
-            to: channelID,
-            message: `Request Status Updated`
-        });
+function sendRequest(channel, username, request, test) {
+    let adminID = "116976756581203972";
+    if (test) {
+        adminID = "139462400658112513";
     }
+	channel.send(
+		`Request "${request}" sent to Plex Admin.`
+	).then(requestMessage => {
+		bot.users.cache.get(adminID).send(
+			`From: ${username}\nPlex Request: ${request}`
+		).then(message => {
+			requests.set(message.id, new PlexRequest(requestMessage, request));
+			if (requestNum === 999)
+				requestNum = 100;
+			else
+				requestNum++;
+			updateSavedDataFile();
+		});
+	});
 }
 
-function startMonitoring(channelID) {
-    if (!monitoringChannels.some(e => e === channelID)) {
-        monitoringChannels.push(channelID);
-        bot.sendMessage({
-            to: channelID,
-            message: 'Now monitoring Plex server for newly added movies and shows.'
-        });
+function statusUpdate(message, reaction) {
+	if (requests.has(message.id)) {
+		const requestPlex = requests.get(message.id);
+		requestPlex.message.reactions.removeAll();
+		requestPlex.message.react(reaction.emoji.name);
+	} 
+}
+
+function startMonitoring(channel) {
+	const channelID = channel.id;
+    if (!monitoringChannels.has(channelID)) {
+        monitoringChannels.add(channelID);
+        channel.send('Now monitoring Plex server for newly added movies and shows.');
         updateSavedDataFile();
     } else {
-        bot.sendMessage({
-            to: channelID,
-            message: 'Monitoring for Plex server has already been started.'
-        });
+        channel.send('Monitoring for Plex server has already been started.');
     }
 }
 
-function stopMonitoring(channelID) {
-    if (monitoringChannels.some(e => e === channelID)) {
-        delete monitoringChannels[channelID];
-        bot.sendMessage({
-            to: channelID,
-            message: 'Monitoring for Plex server has stopped.'
-        });
+function stopMonitoring(channel) {
+	const channelID = channel.id;
+    if (monitoringChannels.has(channelID)) {
+        monitoringChannels.delete(channelID);
+        channel.send('Monitoring for Plex server has stopped.');
         updateSavedDataFile();
     } else {
-        bot.sendMessage({
-            to: channelID,
-            message: 'Monitoring for Plex server is already stopped.'
-        });
+        channel.send('Monitoring for Plex server is already stopped.');
     }
 }
 
-function subscribe(channelID, email) {
+function subscribe(channel, email) {
     if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        if (!monitoringEmails.some(e => e === email)) {
-            monitoringEmails.push(email);
-            bot.sendMessage({
-                to: channelID,
-                message: `${email} is now subscribed to Plex sever!`
-            });
+        if (!monitoringEmails.has(email)) {
+            monitoringEmails.add(email);
+            channel.send(`${email} is now subscribed to Plex sever!`);
             updateSavedDataFile();
         } else {
-            bot.sendMessage({
-                to: channelID,
-                message: 'Already subscribed to Plex server.'
-            });
+            channel.send('Already subscribed to Plex server.');
         }
     } else {
-        bot.sendMessage({
-            to: channelID,
-            message: 'Invalid email address.'
-        });
+        channel.send('Invalid email address.');
     }
 }
 
-function unsubscribe(channelID, email) {
+function unsubscribe(channel, email) {
     if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        if (monitoringEmails.some(e => e === email)) {
-            delete monitoringEmails[email];
-            bot.sendMessage({
-                to: channelID,
-                message: `${email} has now been unsubscribed from Plex sever!`
-            });
+        if (monitoringEmails.has(email)) {
+            monitoringEmails.delete(email);
+            channel.send(`${email} has now been unsubscribed from Plex sever!`);
             updateSavedDataFile();
         } else {
-            bot.sendMessage({
-                to: channelID,
-                message: 'Already unsubscribed from Plex server.'
-            });
+            channel.send('Already unsubscribed from Plex server.');
         }
     } else {
-        bot.sendMessage({
-            to: channelID,
-            message: 'Invalid email address.'
-        });
+        channel.send('Invalid email address.');
     }
 }
 
-function showRecentlyAddedMovies(channelID) {
+function showRecentlyAddedMovies(channel) {
     apiResource.getRecentlyAddedMovies(function (movies) {
         movies.forEach(function (movie) {
-            bot.sendMessage({
-                to: channelID,
-                message: `----------------------------------------\n**Recently Added Movie** - ${movie.title}\n__*Year*__ : ${movie.year}\n__*Summary*__ : ||${movie.summary}||\n----------------------------------------`
-            });
+            channel.send(
+				`----------------------------------------\n**Recently Added Movie** - ${movie.title}\n__*Year*__ : ${movie.year}\n__*Summary*__ : ||${movie.summary}||\n----------------------------------------`
+            );
         });
     });
 }
 
-function showRecentlyAddedShows(channelID) {
+function showRecentlyAddedShows(channel) {
     apiResource.getRecentlyAddedShows(function (shows) {
         shows.forEach(function (show) {
             if (show.grandparent_title === "") {
-                bot.sendMessage({
-                    to: channelID,
-                    message: `----------------------------------------\n**Recently Added Series** - ${show.parent_title}\n__*Season*__ : ${show.title}\n----------------------------------------`
-                });
+                channel.send(
+					`----------------------------------------\n**Recently Added Series** - ${show.parent_title}\n__*Season*__ : ${show.title}\n----------------------------------------`
+                );
             } else {
-                bot.sendMessage({
-                    to: channelID,
-                    message: `----------------------------------------\n**Recently Added Episode** - ${show.grandparent_title}\n__*Title*__ : ${show.title}\n__*Season*__ : ${show.parent_title}\n__*Summary*__ : ||${show.summary}||\n----------------------------------------`
-                });
+                channel.send(
+                    `----------------------------------------\n**Recently Added Episode** - ${show.grandparent_title}\n__*Title*__ : ${show.title}\n__*Season*__ : ${show.parent_title}\n__*Summary*__ : ||${show.summary}||\n----------------------------------------`
+                );
             }
         });
     });
 }
 
-function showReport(channelID, timeFrame) {
+function showReport(channel, timeFrame) {
     var days = 0;
     var reportType = "All Time";
     if (timeFrame === "day") {
@@ -375,36 +311,18 @@ function showReport(channelID, timeFrame) {
             topUsersMsg += `${user.friendly_name} - Total Plays: ${user.total_plays}, Time Spent: ${msToTime(user.total_duration)}\n`
         });
         topUsersMsg += "-------------------------------------\n";
-        bot.sendMessage({
-            to: channelID,
-            message: `${topMoviesMsg}`
-        });
-        bot.sendMessage({
-            to: channelID,
-            message: `${popMoviesMsg}\n`
-        });
-        bot.sendMessage({
-            to: channelID,
-            message: `${topShowsMsg}`
-        });
-        bot.sendMessage({
-            to: channelID,
-            message: `${popShowsMsg}\n`
-        });
-        bot.sendMessage({
-            to: channelID,
-            message: `${topUsersMsg}\n`
-        });
+        channel.send(`${topMoviesMsg}`);
+		channel.send(`${popMoviesMsg}`);
+        channel.send(`${topShowsMsg}`);
+        channel.send(`${popShowsMsg}`);
+        channel.send(`${topUsersMsg}`);
     });
 }
 
-function showUserStats(channelID, username) {
+function showUserStats(channel, username) {
     apiResource.user_stats(username, function (statsMap) {
         if (statsMap.size === 0) {
-            bot.sendMessage({
-                to: channelID,
-                message: `User ${username} does not exist`
-            });
+            channel.send(`User ${username} does not exist`);
         } else {
             var dayMsg = `Last 24 hours  : Total Time - ${msToTime(statsMap.get('dailyWatch').total_time)}, Total Plays - ${statsMap.get('dailyWatch').total_plays}\n`;
             var weekMsg = `Last 7 day     : Total Time - ${msToTime(statsMap.get('weeklyWatch').total_time)}, Total Plays - ${statsMap.get('weeklyWatch').total_plays}\n`;
@@ -414,24 +332,20 @@ function showUserStats(channelID, username) {
             statsMap.get('lastWatched').forEach(function (data) {
                 lastWatchedMsg += `\t${data.last_played}, Player: ${data.player}\n`
             });
-            bot.sendMessage({
-                to: channelID,
-                message: `\`---------- User Stats for ${username} ----------\n${dayMsg}${weekMsg}${monthMsg}${allTimeMsg}${lastWatchedMsg}------------------------------\``
-            });
+            channel.send(
+				`\`---------- User Stats for ${username} ----------\n${dayMsg}${weekMsg}${monthMsg}${allTimeMsg}${lastWatchedMsg}------------------------------\``
+            );
         }
     });
 }
 
-function showUsers(channelID) {
+function showUsers(channel) {
     apiResource.getUsers(function (users) {
         var usersMsg = "";
         users.forEach(function (user) {
             usersMsg += `Username: ${user.friendly_name}, UserId: ${user.user_id}\n`
         });
-        bot.sendMessage({
-            to: channelID,
-            message: usersMsg
-        });
+        channel.send(usersMsg);
     });
 }
 
@@ -440,33 +354,32 @@ function monitoringAction() {
     checkRecentMovies(function (newMovies) {
         newMovies.forEach(function (movie) {
             monitoringChannels.forEach(function (channelID) {
+				const channel = bot.channels.cache.find(channel => channel.id === channelID)
                 var summary = "";
                 if (movie.summary != "") {
                     summary = `__*Summary*__ : ||${movie.summary}||\n`
                 }
-                bot.sendMessage({
-                    to: channelID,
-                    message: `----------------------------------------\n**Movie Added** - ${movie.title}\n__*Year*__ : ${movie.year}\n${summary}----------------------------------------`
-                });
+                channel.send(
+					`----------------------------------------\n**Movie Added** - ${movie.title}\n__*Year*__ : ${movie.year}\n${summary}----------------------------------------`
+                );
             });
         });
         checkRecentShows(function (newShows) {
             newShows.forEach(function (show) {
                 monitoringChannels.forEach(function (channelID) {
+					const channel = bot.channels.cache.find(channel => channel.id === channelID)
                     if (show.grandparent_title === "") {
-                        bot.sendMessage({
-                            to: channelID,
-                            message: `----------------------------------------\n**New Series Added** - ${show.parent_title}\n__*Season*__ : ${show.title}\n----------------------------------------`
-                        });
+                        channel.send(
+							`----------------------------------------\n**New Series Added** - ${show.parent_title}\n__*Season*__ : ${show.title}\n----------------------------------------`
+                        );
                     } else {
                         var summary = "";
                         if (show.summary != "") {
                             summary = `__*Summary*__ : ||${show.summary}||\n`
                         }
-                        bot.sendMessage({
-                            to: channelID,
-                            message: `----------------------------------------\n**New Episode Added** - ${show.grandparent_title}\n__*Title*__ : ${show.title}\n__*Season*__ : ${show.parent_title}\n${summary}----------------------------------------`
-                        });
+                        channel.send(
+                            `----------------------------------------\n**New Episode Added** - ${show.grandparent_title}\n__*Title*__ : ${show.title}\n__*Season*__ : ${show.parent_title}\n${summary}----------------------------------------`
+                        );
                     }
                 });
             });
@@ -576,9 +489,9 @@ function updateSavedDataFile() {
     // requests.set(101, new PlexRequest(111, 999, "bye"));
 
     var json = {
-        "notificaton_emails": monitoringEmails,
-        "newsletter_emails": newsletterEmails,
-        "channels": monitoringChannels,
+        "notificaton_emails": Array.from(monitoringEmails),
+        "newsletter_emails": Array.from(newsletterEmails),
+        "channels": Array.from(monitoringChannels),
         "oldMovies": Array.from(oldMovies),
         "oldShows": Array.from(oldShows),
         "requestNum": validRequestNum,
