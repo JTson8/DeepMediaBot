@@ -7,6 +7,9 @@
   "scripts": {
     "start": "node bot.js"
   },
+  "engines": {
+    "node": "15.5.1"
+  },
   "dependencies": {
     "discord.js": "^12.5.1",
     "http": "0.0.0",
