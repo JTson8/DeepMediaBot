@@ -126,7 +126,7 @@ bot.on('message', msg => {
                 break;
             case 'help':
 				channel.send(
-					'**Welcome!** I am the Deep Media Plex Bot! My current duties are to provide recently added shows and movies.\n**Commands** - Start with \'~\'\n\`request [text]: Slides a Plex request into the Will\'s DMs. Can add any text to describe a request\nlatest_movies : Get information on the last 5 added movies\nlatest_shows : Get information on the last 5 added episodes\nstart_monitor : Starts monitoring the server. I will send messages whenever a new movie or show is added\nstop_monitor : Stops monitoring the server\nsubscribe [email address]: Subscribes that email to a get notifications when new things are added\nunsubscribe [email address]: Unsubscribes email address from mailing list\nreport [alltime, day, week, month] : Gives a stat report within the given time frame\nuser_stats [username] : Gives stats on the given user\nusers : Gives list of all users and their ids\n (ADMIN ONLY) status_update [request id] [status]: Only available in DMs of Plex Admin. Plex admin can respond to a request with the request id and then followed with the following status options [\'s\' = searching, \'f\' = found, \'n\' = not found]. This will update the original request message with the new status.\`'
+					'**Welcome!** I am the Deep Media Plex Bot! My current duties are to provide recently added shows and movies.\n**Commands** - Start with \'~\'\n\`request [text]: Slides a Plex request into the Will\'s DMs. Can add any text to describe a request\nlatest_movies : Get information on the last 5 added movies\nlatest_shows : Get information on the last 5 added episodes\nstart_monitor : Starts monitoring the server. I will send messages whenever a new movie or show is added\nstop_monitor : Stops monitoring the server\nsubscribe [email address]: Subscribes that email to a get notifications when new things are added\nunsubscribe [email address]: Unsubscribes email address from mailing list\nreport [alltime, day, week, month] : Gives a stat report within the given time frame\nuser_stats [username] : Gives stats on the given user\nusers : Gives list of all users and their ids'
                 );
                 break;
             case 'report':
@@ -182,7 +182,7 @@ function sendRequest(channel, username, request, test) {
         adminID = "139462400658112513";
     }
 	channel.send(
-		`Request "${request}" sent to Plex Admin.2`
+		`Request "${request}" sent to Plex Admin.`
 	).then(requestMessage => {
 		bot.users.cache.get(adminID).send(
 			`From: ${username}\nPlex Request: ${request}`
