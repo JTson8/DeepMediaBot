@@ -80,6 +80,8 @@ bot.on('ready', function (evt) {
 });
 
 bot.login(auth.token);
+bot.users.fetch('116976756581203972');
+bot.users.fetch('139462400658112513');
 
 bot.on('disconnect', function(erMsg, code) {
     console.log('----- Bot disconnected from Discord with code', code, 'for reason:', erMsg, '-----');
@@ -159,17 +161,28 @@ bot.on('message', msg => {
 });
 
 bot.on('messageReactionAdd', (reaction, user) => {
-	statusUpdate(reaction.message, reaction);	
+	if (requests.has(reaction.message.id)) {
+		const requestPlex = requests.get(reaction.message.id);
+		requestPlex.message.react(reaction.emoji);
+	} 
 });
+
+bot.on('messageReactionRemove', (reaction, user) => {
+	if (requests.has(reaction.message.id)) {
+		const requestPlex = requests.get(reaction.message.id);
+		requestPlex.message.reactions.cache.find(r => r.emoji.name == reaction.emoji.name).remove();
+	} 
+});
+
 
 // Slides a plex request into Will's DMs
 function sendRequest(channel, username, request, test) {
-    let adminID = "116976756581203972";
+    var adminID = "116976756581203972";
     if (test) {
         adminID = "139462400658112513";
     }
 	channel.send(
-		`Request "${request}" sent to Plex Admin.`
+		`Request "${request}" sent to Plex Admin.2`
 	).then(requestMessage => {
 		bot.users.cache.get(adminID).send(
 			`From: ${username}\nPlex Request: ${request}`
@@ -187,7 +200,6 @@ function sendRequest(channel, username, request, test) {
 function statusUpdate(message, reaction) {
 	if (requests.has(message.id)) {
 		const requestPlex = requests.get(message.id);
-		requestPlex.message.reactions.removeAll();
 		requestPlex.message.react(reaction.emoji.name);
 	} 
 }
