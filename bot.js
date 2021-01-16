@@ -13,7 +13,10 @@ if (!fs.existsSync("./savedData/savedData.json")) {
         "oldMovies": [],
         "oldShows": [],
         "requestNum": 100,
-        "requests": JSON.stringify([...(new Map())])
+        "requests": JSON.stringify([...(new Map())]),
+		"movieFileMessages": JSON.stringify([...(new Map())]),
+		"movieFileSets": [],
+		"tvShowMessages": []
     };
     fs.mkdir('./savedData', { recursive: true }, (err) => {if (err) throw err;});
     fs.writeFileSync('./savedData/savedData.json', JSON.stringify(json, null, 2));
@@ -22,11 +25,19 @@ if (!fs.existsSync("./savedData/savedData.json")) {
 const savedData = require('./savedData/savedData.json');
 const apiResource = require('./apiResource.js');
 const htmlResource = require('./htmlResource.js');
+const embedResource = require('./embedResource.js');
 
 class PlexRequest {
     constructor(message, request) {
         this.message = message;
         this.request = request;
+    }
+}
+
+class MovieFileInfo {
+    constructor(guid, indexerId) {
+        this.guid = guid;
+        this.indexerId = indexerId;
     }
 }
 
@@ -50,6 +61,9 @@ var monitoringEmails = new Set(savedData.notificaton_emails);
 var newsletterEmails = new Set(savedData.newsletter_emails);
 
 var requestNum = savedData.requestNum;
+var movieFileMessages = new Map(savedData.movieFileMessages);
+var movieFileSets = new Set(savedData.movieFileSets);
+var tvShowMessages = new Map(savedData.tvShowMessages);
 var requests = new Map();
 
 if (!requestNum) {
@@ -103,8 +117,20 @@ bot.on('message', msg => {
             case 'request':
                 sendRequest(channel, user.username, args.join(' '), false);
                 break;
-            case 'request_test':
+			case 'request_movie':
+                sendMovieRequest(channel, user, args.join(' '), false);
+                break;
+            case 'request_show':
+                sendShowRequest(channel, user, args.join(' '), false);
+                break;
+			case 'request_test':
                 sendRequest(channel, user.username, args.join(' '), true);
+                break;
+			case 'request_movie_test':
+                sendMovieRequest(channel, user, args.join(' '), true);
+                break;
+			case 'request_show_test':
+                sendShowRequest(channel, user, args.join(' '), true);
                 break;
             case 'latest_movies':
                 showRecentlyAddedMovies(channel);
@@ -125,9 +151,7 @@ bot.on('message', msg => {
                 unsubscribe(channel, args.join(' '));
                 break;
             case 'help':
-				channel.send(
-					'**Welcome!** I am the Deep Media Plex Bot! My current duties are to provide recently added shows and movies.\n**Commands** - Start with \'~\'\n\`request [text]: Slides a Plex request into the Will\'s DMs. Can add any text to describe a request\nlatest_movies : Get information on the last 5 added movies\nlatest_shows : Get information on the last 5 added episodes\nstart_monitor : Starts monitoring the server. I will send messages whenever a new movie or show is added\nstop_monitor : Stops monitoring the server\nsubscribe [email address]: Subscribes that email to a get notifications when new things are added\nunsubscribe [email address]: Unsubscribes email address from mailing list\nreport [alltime, day, week, month] : Gives a stat report within the given time frame\nuser_stats [username] : Gives stats on the given user\nusers : Gives list of all users and their ids'
-                );
+				channel.send(embedResource.embedHelp(bot));
                 break;
             case 'report':
                 if (args.length !== 0) {
@@ -161,10 +185,35 @@ bot.on('message', msg => {
 });
 
 bot.on('messageReactionAdd', (reaction, user) => {
-	if (requests.has(reaction.message.id)) {
+	if (!reaction.me && requests.has(reaction.message.id)) {
 		const requestPlex = requests.get(reaction.message.id);
 		requestPlex.message.react(reaction.emoji);
-	} 
+	} else if (!reaction.me && movieFileMessages.has(reaction.message.id) && reaction.emoji.name === '⬇️') {
+		apiResource.downloadRadarrMovie(movieFileMessages.get(reaction.message.id), function (downloaded) {
+			if (downloaded) {
+				reaction.message.react('✅');
+			}
+			var fileSetToRemove = null;
+			movieFileSets.forEach( function(fileSet) {
+				fileSet.forEach ( function (fileMsg) {
+					if (fileMsg.id !== reaction.message.id) {
+						fileSetToRemove = fileSet;
+						fileMsg.delete();
+					}
+				});
+			});
+			if (fileSetToRemove !== null) {
+				movieFileSets.delete(fileSetToRemove);
+				updateSavedDataFile();
+			}
+		});
+	} else if (!reaction.me && tvShowMessages.has(reaction.message.id) && reaction.emoji.name === '⬇️') {
+		apiResource.addMedusaShow(tvShowMessages.get(reaction.message.id), function (added) {
+			if (added) {
+				reaction.message.react('✅');
+			}
+		});
+	}
 });
 
 bot.on('messageReactionRemove', (reaction, user) => {
@@ -194,6 +243,141 @@ function sendRequest(channel, username, request, test) {
 				requestNum++;
 			updateSavedDataFile();
 		});
+	});
+}
+
+function sendMovieRequest(channel, userObj, request, test) {
+    var adminID = "116976756581203972";
+    if (test) {
+        adminID = "139462400658112513";
+    }
+	apiResource.searchRadarrMovie(request, function (movies) {
+		logger.info(movies.length);
+		if (movies !== undefined && movies.length !== undefined && movies.length !== 0) {
+			channel.send('Please select correct Movie').then(originalRequest => {
+				var num = 3;
+				const filter = (reaction, user) => {
+					return '➕' === reaction.emoji.name && user.id === userObj.id;
+				};
+				const messagesToDelete = new Set();
+				movies.forEach(function (movie) {
+					if (num > 0) {
+						num = num-1;
+						channel.send(embedResource.embedRadarrMovie(bot, movie)).then(message => {
+							messagesToDelete.add(message);
+							message.react('➕');
+							message.awaitReactions(filter, { max: 1, time: 60000*5, errors: ['time'] })
+								.then(collected => {
+									const reactionMessage = collected.first().message;
+									apiResource.addRadarrMovie(movie, function (addedMovie) {
+										if(addedMovie.id !== undefined) {
+											messagesToDelete.forEach(function (msg) {
+												if (msg.id !== reactionMessage.id) {
+													msg.delete();
+												}
+											});
+											reactionMessage.react('✅');
+											bot.users.cache.get(adminID).send(
+												`From: ${userObj.username} - Plex Request: ${request}`
+											).then(requestMessage => {
+												apiResource.getRadarrMovieFiles(addedMovie.id, function (movieFiles) {
+													var adminNum = 4;
+													movieFiles.forEach(function (movieFile) {
+														if (adminNum > 0) {
+															adminNum = adminNum-1;
+															const fileSet = new Set();
+															bot.users.cache.get(adminID).send(embedResource.embedRadarrMovieFile(bot, movieFile)).then(movieFileMessage => {
+																movieFileMessage.react('⬇️');
+																movieFileMessages.set(movieFileMessage.id, new MovieFileInfo(movieFile.guid, movieFile.indexerId));
+																fileSet.add(movieFileMessage);
+															});
+															movieFileSets.add(fileSet);
+														}
+													});
+													requests.set(requestMessage.id, new PlexRequest(originalRequest, request));
+													if (requestNum === 999)
+														requestNum = 100;
+													else
+														requestNum++;
+													updateSavedDataFile();
+												});
+											});
+										} else {
+											bot.users.cache.get(adminID).send(
+												`From: ${userObj.username} - Plex Request: ${request}`
+											).then(requestMessage => {
+												requests.set(requestMessage.id, new PlexRequest(originalRequest, request));
+												if (requestNum === 999)
+													requestNum = 100;
+												else
+													requestNum++;
+												updateSavedDataFile();
+											});
+										}
+									});
+								}).catch(collected => {
+									message.delete()
+									.then(msg => console.log(`Deleted message from ${msg.author.username}`))
+									.catch(console.error);
+								});
+						});
+					}
+				});
+			});
+		} else {
+			sendRequest(channel, userObj.username, request, test);
+		}
+	});
+}
+
+function sendShowRequest(channel, userObj, request, test) {
+    var adminID = "116976756581203972";
+    if (test) {
+        adminID = "139462400658112513";
+    }
+	apiResource.searchTMDBShow(request, function (shows) {
+		if (shows !== undefined && shows.length !== undefined && shows.length !== 0) {
+			channel.send('Please select correct Show').then(originalRequest => {
+				var num = 3;
+				const filter = (reaction, user) => {
+					return '➕' === reaction.emoji.name && user.id === userObj.id;
+				};
+				const messagesToDelete = new Set();
+				shows.forEach(function (show) {
+					if (num > 0) {
+						num = num-1;
+						channel.send(embedResource.embedTMDBShow(bot, show)).then(message => {
+							messagesToDelete.add(message);
+							message.react('➕');
+							message.awaitReactions(filter, { max: 1, time: 60000*5, errors: ['time'] }).then(collected => {
+								messagesToDelete.forEach(function (msg) {
+									if (msg.id !== message.id) {
+										msg.delete();
+									}
+								});
+								message.react('✅');
+								bot.users.cache.get(adminID).send(
+									`From: ${userObj.username} - Plex Request: ${request}`
+								).then(requestMessage => {
+									bot.users.cache.get(adminID).send(embedResource.embedTMDBShow(bot, show)).then(confirmMessage => {
+										confirmMessage.react('⬇️');
+										tvShowMessages.set(confirmMessage.id, show.id);
+										requests.set(requestMessage.id, new PlexRequest(originalRequest, request));
+										if (requestNum === 999)
+											requestNum = 100;
+										else
+											requestNum++;
+										updateSavedDataFile();
+									});
+								});
+							});
+						});
+					}
+				});
+			});
+		} else {
+			sendRequest(channel, userObj.username, request, test);
+		}
 	});
 }
 
@@ -247,7 +431,7 @@ function unsubscribe(channel, email) {
             channel.send(`${email} has now been unsubscribed from Plex sever!`);
             updateSavedDataFile();
         } else {
-            channel.send('Already unsubscribed from Plex server.');
+            channel.send('Already unsubscribed to Plex server.');
         }
     } else {
         channel.send('Invalid email address.');
@@ -255,27 +439,31 @@ function unsubscribe(channel, email) {
 }
 
 function showRecentlyAddedMovies(channel) {
-    apiResource.getRecentlyAddedMovies(function (movies) {
+    var num = 5
+	apiResource.getRecentlyAddedMovies(function (movies) {
         movies.forEach(function (movie) {
-            channel.send(
-				`----------------------------------------\n**Recently Added Movie** - ${movie.title}\n__*Year*__ : ${movie.year}\n__*Summary*__ : ||${movie.summary}||\n----------------------------------------`
-            );
+			if (num > 0) {
+				num = num - 1;
+				channel.send(embedResource.embedPlexMovie(bot, movie));
+			}
         });
     });
 }
 
 function showRecentlyAddedShows(channel) {
+	var num = 5
     apiResource.getRecentlyAddedShows(function (shows) {
         shows.forEach(function (show) {
-            if (show.grandparent_title === "") {
-                channel.send(
-					`----------------------------------------\n**Recently Added Series** - ${show.parent_title}\n__*Season*__ : ${show.title}\n----------------------------------------`
-                );
-            } else {
-                channel.send(
-                    `----------------------------------------\n**Recently Added Episode** - ${show.grandparent_title}\n__*Title*__ : ${show.title}\n__*Season*__ : ${show.parent_title}\n__*Summary*__ : ||${show.summary}||\n----------------------------------------`
-                );
-            }
+			if (num > 0) {
+				num = num - 1;
+				if (show.media_type === "episode") {
+					channel.send(embedResource.embedPlexEpisode(bot, show));
+				} else if (show.media_type === "show") {
+					channel.send(embedResource.embedPlexShow(bot, show));
+				} else if (show.media_type === "season") {
+					channel.send(embedResource.embedPlexSeason(bot, show));
+				}
+			}
         });
     });
 }
@@ -367,32 +555,20 @@ function monitoringAction() {
         newMovies.forEach(function (movie) {
             monitoringChannels.forEach(function (channelID) {
 				const channel = bot.channels.cache.find(channel => channel.id === channelID)
-                var summary = "";
-                if (movie.summary != "") {
-                    summary = `__*Summary*__ : ||${movie.summary}||\n`
-                }
-                channel.send(
-					`----------------------------------------\n**Movie Added** - ${movie.title}\n__*Year*__ : ${movie.year}\n${summary}----------------------------------------`
-                );
+                channel.send(embedResource.embedPlexMovie(bot, movie));
             });
         });
         checkRecentShows(function (newShows) {
             newShows.forEach(function (show) {
                 monitoringChannels.forEach(function (channelID) {
 					const channel = bot.channels.cache.find(channel => channel.id === channelID)
-                    if (show.grandparent_title === "") {
-                        channel.send(
-							`----------------------------------------\n**New Series Added** - ${show.parent_title}\n__*Season*__ : ${show.title}\n----------------------------------------`
-                        );
-                    } else {
-                        var summary = "";
-                        if (show.summary != "") {
-                            summary = `__*Summary*__ : ||${show.summary}||\n`
-                        }
-                        channel.send(
-                            `----------------------------------------\n**New Episode Added** - ${show.grandparent_title}\n__*Title*__ : ${show.title}\n__*Season*__ : ${show.parent_title}\n${summary}----------------------------------------`
-                        );
-                    }
+                    if (show.media_type === "episode") {
+                        channel.send(embedResource.embedPlexEpisode(bot, show));
+                    } else if (show.media_type === "show") {
+                        channel.send(embedResource.embedPlexShow(bot, show));
+                    } else if (show.media_type === "season") {
+						channel.send(embedResource.embedPlexSeason(bot, show));
+					}
                 });
             });
             if (newMovies.size !== 0 || newShows.size !== 0) {
@@ -507,7 +683,10 @@ function updateSavedDataFile() {
         "oldMovies": Array.from(oldMovies),
         "oldShows": Array.from(oldShows),
         "requestNum": validRequestNum,
-        "requests": Array.from(requests)
+        "requests": Array.from(requests),
+		"movieFileMessages": Array.from(movieFileMessages),
+		"movieFileMessages": Array.from(movieFileSets),
+		"tvShowMessages": Array.from(tvShowMessages)
     };
     fs.writeFileSync('./savedData/savedData.json', JSON.stringify(json, null, 2));
 }

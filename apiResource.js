@@ -1,6 +1,150 @@
 const config = require('./savedData/config.json');
+const radarrConfig = require('./savedData/radarrConfig.json');
+const medusaConfig = require('./savedData/medusaConfig.json');
 const http = require('http');
 const logger = require('winston');
+
+function searchTMDBShow(term, callback) {
+	http.get(encodeURI(`http://api.themoviedb.org/3/search/tv?api_key=${medusaConfig.tmdbapikey}&query=${term}`), (resp) => {
+		let data = "";
+		
+		resp.on('data', (chunk) => {
+			data += chunk;
+		});
+		
+		resp.on('end', () => {
+			return callback(JSON.parse(data).results);
+		});
+	}).on("error", (err) => {
+		logger.error(err.message);
+	});
+}
+
+function addMedusaShow(id, callback) {
+	var options = {
+		protocol: 'http:',
+        host: medusaConfig.host,
+        port: medusaConfig.port,
+        path: `/api/v2/series`,
+        method: 'POST',
+        headers: {
+            'X-Api-Key': medusaConfig.apikey,
+			'Content-Type': 'application/json'
+        }
+    }
+	
+	var request = http.request(options, (resp) => {
+		let data = "";
+		
+		resp.on('data', (chunk) => {
+			data += chunk;
+		});
+		
+		resp.on('end', () => {
+			return callback(JSON.parse(data));
+		});
+	}).on("error", (err) => {
+		logger.error(err);
+	});
+	request.write(`{"id": {"tmdb": ${id}}}`);
+	request.end();
+}
+
+function searchRadarrMovie(term, callback) {
+	doRadarrGetAPICall(`movie/lookup?term='${term}'`, function(jsonResult) {
+		var movies = new Set();
+		jsonResult.forEach(function(movie) {movies.add(movie);});
+		return callback(movies);
+	});
+}
+
+function getRadarrMovieFiles(id, callback) {
+	doRadarrGetAPICall(`release?movieId=${id}`, function(jsonResult) {
+		var movies = new Set();
+		jsonResult.forEach(function(movie) {movies.add(movie);});
+		return callback(movies);
+	});
+}
+
+function addRadarrMovie(movie, callback) {
+	movie.qualityProfileId = 1;
+	movie.monitored = false;
+	movie.rootFolderPath = "/mnt/movies";
+	doRadarrPostAPICall(`movie`, movie, function(jsonResult) {
+		return callback(jsonResult);
+	});
+}
+
+function downloadRadarrMovie(guidObject, callback) {
+	doRadarrPostAPICall(`release`, guidObject, function(jsonResult) {
+		return callback(jsonResult);
+	});
+}
+
+function doRadarrGetAPICall(command, callback) {
+	var options = {
+		protocol: 'http:',
+        host: radarrConfig.host,
+        port: radarrConfig.port,
+        path: encodeURI(`/api/v3/${command}`),
+        method: 'GET',
+        headers: {
+            'X-Api-Key': radarrConfig.apikey
+        }
+    }
+	
+	var request = http.request(options, (resp) => {
+		let data = "";
+		
+		resp.on('data', (chunk) => {
+			data += chunk;
+		});
+		
+		resp.on('end', () => {
+			try {
+				return callback(JSON.parse(data));
+			} catch (e) {
+				return callback([]);
+			}
+		});
+	}).on("error", (err) => {
+		logger.error(err.message);
+	});
+	request.end();
+}
+
+function doRadarrPostAPICall(command, content, callback) {
+	logger.info(`/api/v3/${command}`);
+	var options = {
+		protocol: 'http:',
+        host: radarrConfig.host,
+        port: radarrConfig.port,
+        path: `/api/v3/${command}`,
+        method: 'POST',
+        headers: {
+            'X-Api-Key': radarrConfig.apikey,
+			'Content-Type': 'application/json'
+        }
+    }
+	
+	var request = http.request(options, (resp) => {
+		let data = "";
+		
+		resp.on('data', (chunk) => {
+			data += chunk;
+		});
+		
+		resp.on('end', () => {
+			return callback(JSON.parse(data));
+		});
+	}).on("error", (err) => {
+		return callback(false);
+		logger.error(err.message);
+	});
+	
+	request.write(JSON.stringify(content));
+	request.end();
+}
 
 function getRecentlyAddedMovies(callback) {
 	doAPICall('get_recently_added&count=20&media_type=movie', function(jsonResult) {
@@ -116,4 +260,4 @@ function get_user_id(username, callback) {
 	});
 }
 
-module.exports = {getRecentlyAddedMovies, getRecentlyAddedShows, home_stats, user_stats, getUsers}
+module.exports = {getRecentlyAddedMovies, getRecentlyAddedShows, home_stats, user_stats, getUsers, searchRadarrMovie, addRadarrMovie, getRadarrMovieFiles, downloadRadarrMovie, searchTMDBShow, addMedusaShow}
