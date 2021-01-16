@@ -685,7 +685,7 @@ function updateSavedDataFile() {
         "requestNum": validRequestNum,
         "requests": Array.from(requests),
 		"movieFileMessages": Array.from(movieFileMessages),
-		"movieFileMessages": Array.from(movieFileSets),
+		"movieFileSets": Array.from(movieFileSets),
 		"tvShowMessages": Array.from(tvShowMessages)
     };
     fs.writeFileSync('./savedData/savedData.json', JSON.stringify(json, null, 2));
