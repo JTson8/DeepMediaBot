@@ -13,7 +13,7 @@ function searchTMDBShow(term, callback) {
 		});
 		
 		resp.on('end', () => {
-			return callback(JSON.parse(data).results);
+			return callback(SON.parse(data).results);
 		});
 	}).on("error", (err) => {
 		logger.error(err.message);
@@ -54,7 +54,7 @@ function searchRadarrMovie(term, callback) {
 	doRadarrGetAPICall(`movie/lookup?term='${term}'`, function(jsonResult) {
 		var movies = new Set();
 		jsonResult.forEach(function(movie) {movies.add(movie);});
-		return callback(movies);
+		return callback(jsonResult);
 	});
 }
 

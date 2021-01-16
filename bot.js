@@ -251,9 +251,10 @@ function sendMovieRequest(channel, userObj, request, test) {
     if (test) {
         adminID = "139462400658112513";
     }
-	apiResource.searchRadarrMovie(request, function (movies) {
-		logger.info(movies.length);
-		if (movies !== undefined && movies.length !== undefined && movies.length !== 0) {
+	apiResource.searchRadarrMovie(request, function (movieResults) {
+		var movies = new Set();
+		movieResults.forEach(function(movie) {movies.add(movie);});
+		if (movieResults !== undefined && movieResults.length !== undefined && movieResults.length !== 0) {
 			channel.send('Please select correct Movie').then(originalRequest => {
 				var num = 3;
 				const filter = (reaction, user) => {
