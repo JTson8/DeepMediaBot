@@ -350,12 +350,13 @@ function sendShowRequest(channel, userObj, request, test) {
 							messagesToDelete.add(message);
 							message.react('➕');
 							message.awaitReactions(filter, { max: 1, time: 60000*5, errors: ['time'] }).then(collected => {
+								const reactionMessage = collected.first().message;
 								messagesToDelete.forEach(function (msg) {
-									if (msg.id !== message.id) {
+									if (msg.id !== reactionMessage.id) {
 										msg.delete();
 									}
 								});
-								message.react('✅');
+								reactionMessage.react('✅');
 								bot.users.cache.get(adminID).send(
 									`From: ${userObj.username} - Plex Request: ${request}`
 								).then(requestMessage => {
