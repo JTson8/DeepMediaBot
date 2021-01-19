@@ -13,7 +13,7 @@ function searchTMDBShow(term, callback) {
 		});
 		
 		resp.on('end', () => {
-			return callback(SON.parse(data).results);
+			return callback(JSON.parse(data).results);
 		});
 	}).on("error", (err) => {
 		logger.error(err.message);
