@@ -57,7 +57,7 @@ function embedPlexSeason(bot, season) {
 			  icon_url: 'https://styles.redditmedia.com/t5_2ql7e/styles/communityIcon_mdwl2x2rtzb11.png'
 			},
 			title: `New Season! - ${season.parent_title}`,
-			description: title,
+			description: season.title,
 			thumbnail: {
 				url: thumbImage
 			},
