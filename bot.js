@@ -378,7 +378,11 @@ function sendShowRequest(channel, userObj, request, test) {
 										updateSavedDataFile();
 									});
 								});
-							});
+							}).catch(collected => {
+								message.delete()
+								.then(msg => console.log(`Deleted message from ${msg.author.username}`))
+								.catch(console.error);
+							});;
 						});
 					}
 				});
