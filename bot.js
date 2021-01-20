@@ -115,7 +115,7 @@ bot.on('message', msg => {
         args = args.splice(1);
         switch (cmd) {
             case 'request':
-                sendRequest(channel, user.username, args.join(' '), false);
+                sendRequest(channel, user.username, args.join(' '), false, "");
                 break;
 			case 'request_movie':
                 sendMovieRequest(channel, user, args.join(' '), false);
@@ -124,7 +124,7 @@ bot.on('message', msg => {
                 sendShowRequest(channel, user, args.join(' '), false);
                 break;
 			case 'request_test':
-                sendRequest(channel, user.username, args.join(' '), true);
+                sendRequest(channel, user.username, args.join(' '), true, "");
                 break;
 			case 'request_movie_test':
                 sendMovieRequest(channel, user, args.join(' '), true);
@@ -225,16 +225,22 @@ bot.on('messageReactionRemove', (reaction, user) => {
 
 
 // Slides a plex request into Will's DMs
-function sendRequest(channel, username, request, test) {
+function sendRequest(channel, username, request, test, failed) {
     var adminID = "116976756581203972";
     if (test) {
         adminID = "139462400658112513";
     }
+	var failText = "";
+	if (failed === "movie") {
+		failText = "Failed to find Movie results\n"
+	} else if (failed === "show") {
+		failText = "Failed to find Show results.\n"
+	}		
 	channel.send(
-		`Request "${request}" sent to Plex Admin.`
+		`${failText}Request "${request}" sent to Plex Admin.`
 	).then(requestMessage => {
 		bot.users.cache.get(adminID).send(
-			`From: ${username}\nPlex Request: ${request}`
+			`${failText}From: ${username}\nPlex Request: ${request}`
 		).then(message => {
 			requests.set(message.id, new PlexRequest(requestMessage, request));
 			if (requestNum === 999)
@@ -326,7 +332,7 @@ function sendMovieRequest(channel, userObj, request, test) {
 				});
 			});
 		} else {
-			sendRequest(channel, userObj.username, request, test);
+			sendRequest(channel, userObj.username, request, test, "movie");
 		}
 	});
 }
@@ -378,7 +384,7 @@ function sendShowRequest(channel, userObj, request, test) {
 				});
 			});
 		} else {
-			sendRequest(channel, userObj.username, request, test);
+			sendRequest(channel, userObj.username, request, test, "show");
 		}
 	});
 }
