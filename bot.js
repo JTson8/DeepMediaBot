@@ -185,42 +185,50 @@ bot.on('message', msg => {
 });
 
 bot.on('messageReactionAdd', (reaction, user) => {
-	if (!reaction.me && requests.has(reaction.message.id)) {
-		const requestPlex = requests.get(reaction.message.id);
-		requestPlex.message.react(reaction.emoji);
-	} else if (!reaction.me && movieFileMessages.has(reaction.message.id) && reaction.emoji.name === '⬇️') {
-		apiResource.downloadRadarrMovie(movieFileMessages.get(reaction.message.id), function (downloaded) {
-			if (downloaded) {
-				reaction.message.react('✅');
-			}
-			var fileSetToRemove = null;
-			movieFileSets.forEach( function(fileSet) {
-				fileSet.forEach ( function (fileMsg) {
-					if (fileMsg.id !== reaction.message.id) {
-						fileSetToRemove = fileSet;
-						fileMsg.delete();
-					}
+	try {
+		if (!reaction.me && requests.has(reaction.message.id)) {
+			const requestPlex = requests.get(reaction.message.id);
+			requestPlex.message.react(reaction.emoji);
+		} else if (!reaction.me && movieFileMessages.has(reaction.message.id) && reaction.emoji.name === '⬇️') {
+			apiResource.downloadRadarrMovie(movieFileMessages.get(reaction.message.id), function (downloaded) {
+				if (downloaded) {
+					reaction.message.react('✅');
+				}
+				var fileSetToRemove = null;
+				movieFileSets.forEach( function(fileSet) {
+					fileSet.forEach ( function (fileMsg) {
+						if (fileMsg.id !== reaction.message.id) {
+							fileSetToRemove = fileSet;
+							fileMsg.delete();
+						}
+					});
 				});
+				if (fileSetToRemove !== null) {
+					movieFileSets.delete(fileSetToRemove);
+					updateSavedDataFile();
+				}
 			});
-			if (fileSetToRemove !== null) {
-				movieFileSets.delete(fileSetToRemove);
-				updateSavedDataFile();
-			}
-		});
-	} else if (!reaction.me && tvShowMessages.has(reaction.message.id) && reaction.emoji.name === '⬇️') {
-		apiResource.addMedusaShow(tvShowMessages.get(reaction.message.id), function (added) {
-			if (added) {
-				reaction.message.react('✅');
-			}
-		});
+		} else if (!reaction.me && tvShowMessages.has(reaction.message.id) && reaction.emoji.name === '⬇️') {
+			apiResource.addMedusaShow(tvShowMessages.get(reaction.message.id), function (added) {
+				if (added) {
+					reaction.message.react('✅');
+				}
+			});
+		}
+	} catch (e) {
+		console.log(e);
 	}
 });
 
 bot.on('messageReactionRemove', (reaction, user) => {
-	if (requests.has(reaction.message.id)) {
-		const requestPlex = requests.get(reaction.message.id);
-		requestPlex.message.reactions.cache.find(r => r.emoji.name == reaction.emoji.name).remove();
-	} 
+	try {
+		if (requests.has(reaction.message.id)) {
+			const requestPlex = requests.get(reaction.message.id);
+			requestPlex.message.reactions.cache.find(r => r.emoji.name == reaction.emoji.name).remove();
+		} 
+	} catch (e) {
+		console.log(e);
+	}
 });
 
 
@@ -278,11 +286,15 @@ function sendMovieRequest(channel, userObj, request, test) {
 									const reactionMessage = collected.first().message;
 									apiResource.addRadarrMovie(movie, function (addedMovie) {
 										if(addedMovie.id !== undefined) {
-											messagesToDelete.forEach(function (msg) {
-												if (msg.id !== reactionMessage.id) {
-													msg.delete();
-												}
-											});
+											try {
+												messagesToDelete.forEach(function (msg) {
+													if (msg.id !== reactionMessage.id) {
+														msg.delete();
+													}
+												});
+											} catch (e) {
+												console.log(e);
+											}
 											reactionMessage.react('✅');
 											bot.users.cache.get(adminID).send(
 												`From: ${userObj.username} - Plex Request: ${request}`
@@ -290,15 +302,19 @@ function sendMovieRequest(channel, userObj, request, test) {
 												apiResource.getRadarrMovieFiles(addedMovie.id, function (movieFiles) {
 													var adminNum = 4;
 													movieFiles.forEach(function (movieFile) {
-														if (adminNum > 0) {
-															adminNum = adminNum-1;
-															const fileSet = new Set();
-															bot.users.cache.get(adminID).send(embedResource.embedRadarrMovieFile(bot, movieFile)).then(movieFileMessage => {
-																movieFileMessage.react('⬇️');
-																movieFileMessages.set(movieFileMessage.id, new MovieFileInfo(movieFile.guid, movieFile.indexerId));
-																fileSet.add(movieFileMessage);
-															});
-															movieFileSets.add(fileSet);
+														try {
+															if (adminNum > 0) {
+																adminNum = adminNum-1;
+																const fileSet = new Set();
+																bot.users.cache.get(adminID).send(embedResource.embedRadarrMovieFile(bot, movieFile)).then(movieFileMessage => {
+																	movieFileMessage.react('⬇️');
+																	movieFileMessages.set(movieFileMessage.id, new MovieFileInfo(movieFile.guid, movieFile.indexerId));
+																	fileSet.add(movieFileMessage);
+																});
+																movieFileSets.add(fileSet);
+															}
+														} catch (e) {
+															console.log(e);
 														}
 													});
 													requests.set(requestMessage.id, new PlexRequest(originalRequest, request));
@@ -357,13 +373,17 @@ function sendShowRequest(channel, userObj, request, test) {
 							messagesToDelete.add(message);
 							message.react('➕');
 							message.awaitReactions(filter, { max: 1, time: 60000*5, errors: ['time'] }).then(collected => {
-								const reactionMessage = collected.first().message;
-								messagesToDelete.forEach(function (msg) {
-									if (msg.id !== reactionMessage.id) {
-										msg.delete();
-									}
-								});
-								reactionMessage.react('✅');
+								try {
+									const reactionMessage = collected.first().message;
+									messagesToDelete.forEach(function (msg) {
+										if (msg.id !== reactionMessage.id) {
+											msg.delete();
+										}
+									});
+									reactionMessage.react('✅');
+								} catch(e) {
+									console.log(e);
+								}
 								bot.users.cache.get(adminID).send(
 									`From: ${userObj.username} - Plex Request: ${request}`
 								).then(requestMessage => {
@@ -737,28 +757,8 @@ function newEpisodesAndShowsHtml(shows, callback) {
         return callback("");
 
     shows.forEach(function (show) {
-        if (show.grandparent_title === "") {
-            var parentTitle = "";
-            if (show.parent_title !== "") {
-                parentTitle = `${show.parentTitle} - `;
-            }
-            if (!parentTitle.startsWith("undefined") && !show.title.startsWith("undefined")) {
-                var string = `<div class="gl-contains-text">
-						<table width="100%" style="min-width: 100%;" cellpadding="0" cellspacing="0" border="0">
-						<tbody>
-						<tr>
-						<td class="editor-text " align="left" valign="top" style="font-family: Arial, Verdana, Helvetica, sans-serif; font-size: 12px; color: #403F42; text-align: left; display: block; word-wrap: break-word; line-height: 1.2; padding: 10px 20px;">
-						<div></div>
-						<div class="text-container galileo-ap-content-editor"><div><div><span style="font-weight: bold;">${parentTitle}${show.title}</span></div></div></div>
-						</td>
-						</tr>
-						</tbody>
-						</table>
-						</div>`;
-                showsHtml = showsHtml.concat(string);
-            }
-        } else {
-            var string = `<div class="gl-contains-text">
+		if (show.media_type === "episode") {
+			var string = `<div class="gl-contains-text">
 						<table width="100%" style="min-width: 100%;" cellpadding="0" cellspacing="0" border="0">
 						<tbody>
 						<tr>
@@ -777,7 +777,35 @@ function newEpisodesAndShowsHtml(shows, callback) {
 						</table>
 						</div>`;
             episodesHtml = episodesHtml.concat(string);
-        }
+		} else if (show.media_type === "show") {
+			var string = `<div class="gl-contains-text">
+						<table width="100%" style="min-width: 100%;" cellpadding="0" cellspacing="0" border="0">
+						<tbody>
+						<tr>
+						<td class="editor-text " align="left" valign="top" style="font-family: Arial, Verdana, Helvetica, sans-serif; font-size: 12px; color: #403F42; text-align: left; display: block; word-wrap: break-word; line-height: 1.2; padding: 10px 20px;">
+						<div></div>
+						<div class="text-container galileo-ap-content-editor"><div><div><span style="font-weight: bold;">${show.title}</span></div></div></div>
+						</td>
+						</tr>
+						</tbody>
+						</table>
+						</div>`;
+                showsHtml = showsHtml.concat(string);
+		} else if (show.media_type === "season") {
+			var string = `<div class="gl-contains-text">
+						<table width="100%" style="min-width: 100%;" cellpadding="0" cellspacing="0" border="0">
+						<tbody>
+						<tr>
+						<td class="editor-text " align="left" valign="top" style="font-family: Arial, Verdana, Helvetica, sans-serif; font-size: 12px; color: #403F42; text-align: left; display: block; word-wrap: break-word; line-height: 1.2; padding: 10px 20px;">
+						<div></div>
+						<div class="text-container galileo-ap-content-editor"><div><div><span style="font-weight: bold;">${show.parent_title} - ${show.title}</span></div></div></div>
+						</td>
+						</tr>
+						</tbody>
+						</table>
+						</div>`;
+                showsHtml = showsHtml.concat(string);
+		}
     });
 
     var htmlString = "";

@@ -266,13 +266,13 @@ function embedRadarrMovieFile(bot, movie) {
 				title: movie.movieTitle,
 				description: movie.title,
 				fields: [{
-					name: "Quality",
-					value: quality,
+					name: "Size",
+					value: `${size} GB`,
 					inline: true
 				  },
 				  {
-					name: "Size",
-					value: `${size}`,
+					name: "Quality",
+					value: quality,
 					inline: true
 				  },
 				  {
