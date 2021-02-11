@@ -95,6 +95,10 @@ function embedPlexEpisode(bot, episode) {
 			},
 			fields: [
 				{
+					name: "Show",
+					value: ((episode.grandparent_title !== "") ? episode.grandparent_title : "null"),
+				},
+				{
 					name: "Season",
 					value: ((episode.parent_title !== "") ? episode.parent_title : "null"),
 					inline: true
