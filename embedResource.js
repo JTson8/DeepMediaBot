@@ -173,11 +173,11 @@ function embedHelp(bot) {
 				},
 				{
 					name: "request_movie [text]",
-					value: "Gives back possible movie matches based on the given request. Select the wanted movie by reacting with ➕. Request will then be sent to Will's DMs."
+					value: "Gives back possible movie matches based on the given request. Select the wanted movie by reacting with 👍. Request will then be sent to Will's DMs."
 				},
 				{
 					name: "request_show [text]",
-					value: "Gives back possible show matches based on the given request. Select the wanted show by reacting with ➕. Request will then be sent to Will's DMs."
+					value: "Gives back possible show matches based on the given request. Select the wanted show by reacting with 👍. Request will then be sent to Will's DMs."
 				},
 				{
 					name: "latest_movies",
@@ -245,6 +245,16 @@ function embedRadarrMovie(bot, movie) {
 				fields: [{
 					name: "Year",
 					value: ((movie.year !== "") ? movie.year : "null")
+				  },
+				  {
+					name: "On Plex",
+					value: ((movie.hasFile === true) ? "Yes" : "No"),
+					inline: true
+				  },
+				  {
+					name: "Already Searching",
+					value: ((movie.monitored === true) ? "Yes" : "No"),
+					inline: true
 				  }
 				],
 				timestamp: new Date(),
@@ -293,7 +303,7 @@ function embedRadarrMovieFile(bot, movie) {
 	)
 }
 
-function embedTMDBShow(bot, show) {
+function embedTMDBShow(bot, show, added) {
 	var imageUrl = "";
 	if (show.poster_path !== null && show.poster_path.length !== 0) {
 		imageUrl = `https://www.themoviedb.org/t/p/w58_and_h87_face/${show.poster_path}`
@@ -315,7 +325,13 @@ function embedTMDBShow(bot, show) {
 				},
 				fields: [{
 					name: "Air Date",
-					value: ((show.first_air_date !== "") ? show.first_air_date : "null")
+					value: ((show.first_air_date !== "") ? show.first_air_date : "null"),
+					inline: true
+				  },
+				  {
+					name: "On Plex",
+					value: ((added === true) ? "Yes" : "No"),
+					inline: true
 				  }
 				],
 				timestamp: new Date(),

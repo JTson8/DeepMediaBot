@@ -146,6 +146,18 @@ function doRadarrPostAPICall(command, content, callback) {
 	request.end();
 }
 
+function searchShowByName(term, callback) {
+	doAPICall(`get_library_media_info&section_id=2&search=${term}`, function(jsonResult) {
+		var shows = new Set();
+		try {
+			jsonResult.response.data.data.forEach(function(show) {shows.add(show);});
+			return callback(shows);
+		} catch (e) {
+			return callback(shows);
+		}
+	});
+}
+
 function getRecentlyAddedMovies(callback) {
 	doAPICall('get_recently_added&count=20&media_type=movie', function(jsonResult) {
 		var movies = new Set();
@@ -260,4 +272,4 @@ function get_user_id(username, callback) {
 	});
 }
 
-module.exports = {getRecentlyAddedMovies, getRecentlyAddedShows, home_stats, user_stats, getUsers, searchRadarrMovie, addRadarrMovie, getRadarrMovieFiles, downloadRadarrMovie, searchTMDBShow, addMedusaShow}
+module.exports = {getRecentlyAddedMovies, getRecentlyAddedShows, home_stats, user_stats, getUsers, searchRadarrMovie, addRadarrMovie, getRadarrMovieFiles, downloadRadarrMovie, searchTMDBShow, addMedusaShow, searchShowByName}

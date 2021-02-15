@@ -179,6 +179,9 @@ bot.on('message', msg => {
             case 'trigger_email':
                 emailTest(args.join(' '));
                 channel('Sent test email to Jonah');
+                break
+			case 'triger_monitor_check':
+                monitoringAction();
                 break;
         }
     }
@@ -272,51 +275,68 @@ function sendMovieRequest(channel, userObj, request, test) {
 			channel.send('Please select correct Movie').then(originalRequest => {
 				var num = 3;
 				const filter = (reaction, user) => {
-					return '➕' === reaction.emoji.name && user.id === userObj.id;
+					return '👍' === reaction.emoji.name && user.id === userObj.id;
 				};
 				const messagesToDelete = new Set();
 				movies.forEach(function (movie) {
 					if (num > 0) {
 						num = num-1;
-						channel.send(embedResource.embedRadarrMovie(bot, movie)).then(message => {
-							messagesToDelete.add(message);
-							message.react('➕');
-							message.awaitReactions(filter, { max: 1, time: 60000*5, errors: ['time'] })
-								.then(collected => {
-									const reactionMessage = collected.first().message;
-									apiResource.addRadarrMovie(movie, function (addedMovie) {
-										if(addedMovie.id !== undefined) {
-											try {
-												messagesToDelete.forEach(function (msg) {
-													if (msg.id !== reactionMessage.id) {
-														msg.delete();
-													}
-												});
-											} catch (e) {
-												console.log(e);
-											}
-											reactionMessage.react('✅');
-											bot.users.cache.get(adminID).send(
-												`From: ${userObj.username} - Plex Request: ${request}`
-											).then(requestMessage => {
-												apiResource.getRadarrMovieFiles(addedMovie.id, function (movieFiles) {
-													var adminNum = 4;
-													movieFiles.forEach(function (movieFile) {
-														try {
-															if (adminNum > 0) {
-																adminNum = adminNum-1;
-																const fileSet = new Set();
-																bot.users.cache.get(adminID).send(embedResource.embedRadarrMovieFile(bot, movieFile)).then(movieFileMessage => {
-																	movieFileMessage.react('⬇️');
-																	movieFileMessages.set(movieFileMessage.id, new MovieFileInfo(movieFile.guid, movieFile.indexerId));
-																	fileSet.add(movieFileMessage);
-																});
-																movieFileSets.add(fileSet);
-															}
-														} catch (e) {
-															console.log(e);
+						if (movie.hasFile || movie.monitored) {
+							channel.send(embedResource.embedRadarrMovie(bot, movie)).then(message => {
+								messagesToDelete.add(message);
+							});
+						} else {
+							channel.send(embedResource.embedRadarrMovie(bot, movie)).then(message => {
+								messagesToDelete.add(message);
+								message.react('👍');
+								message.awaitReactions(filter, { max: 1, time: 60000*5, errors: ['time'] })
+									.then(collected => {
+										const reactionMessage = collected.first().message;
+										apiResource.addRadarrMovie(movie, function (addedMovie) {
+											if(addedMovie.id !== undefined) {
+												try {
+													messagesToDelete.forEach(function (msg) {
+														if (msg.id !== reactionMessage.id) {
+															msg.delete();
 														}
 													});
+												} catch (e) {
+													console.log(e);
+												}
+												reactionMessage.react('✅');
+												bot.users.cache.get(adminID).send(
+													`From: ${userObj.username} - Plex Request: ${request}`
+													).then(requestMessage => {
+													apiResource.getRadarrMovieFiles(addedMovie.id, function (movieFiles) {
+														var adminNum = 4;
+														movieFiles.forEach(function (movieFile) {
+															try {
+																if (adminNum > 0) {
+																	adminNum = adminNum-1;
+																	const fileSet = new Set();
+																	bot.users.cache.get(adminID).send(embedResource.embedRadarrMovieFile(bot, movieFile)).then(movieFileMessage => {
+																		movieFileMessage.react('⬇️');
+																		movieFileMessages.set(movieFileMessage.id, new MovieFileInfo(movieFile.guid, movieFile.indexerId));
+																		fileSet.add(movieFileMessage);
+																	});
+																	movieFileSets.add(fileSet);
+																}
+															} catch (e) {
+																console.log(e);
+															}
+														});
+														requests.set(requestMessage.id, new PlexRequest(originalRequest, request));
+														if (requestNum === 999)
+															requestNum = 100;
+														else
+														requestNum++;
+														updateSavedDataFile();
+													});
+												});
+											} else {
+												bot.users.cache.get(adminID).send(
+													`From: ${userObj.username} - Plex Request: ${request}`
+												).then(requestMessage => {
 													requests.set(requestMessage.id, new PlexRequest(originalRequest, request));
 													if (requestNum === 999)
 														requestNum = 100;
@@ -324,26 +344,15 @@ function sendMovieRequest(channel, userObj, request, test) {
 														requestNum++;
 													updateSavedDataFile();
 												});
-											});
-										} else {
-											bot.users.cache.get(adminID).send(
-												`From: ${userObj.username} - Plex Request: ${request}`
-											).then(requestMessage => {
-												requests.set(requestMessage.id, new PlexRequest(originalRequest, request));
-												if (requestNum === 999)
-													requestNum = 100;
-												else
-													requestNum++;
-												updateSavedDataFile();
-											});
-										}
+											}
+										});
+									}).catch(collected => {
+										message.delete()
+										.then(msg => console.log(`Deleted message from ${msg.author.username}`))
+										.catch(console.error);
 									});
-								}).catch(collected => {
-									message.delete()
-									.then(msg => console.log(`Deleted message from ${msg.author.username}`))
-									.catch(console.error);
-								});
-						});
+							});
+						}
 					}
 				});
 			});
@@ -363,46 +372,54 @@ function sendShowRequest(channel, userObj, request, test) {
 			channel.send('Please select correct Show').then(originalRequest => {
 				var num = 3;
 				const filter = (reaction, user) => {
-					return '➕' === reaction.emoji.name && user.id === userObj.id;
+					return '👍' === reaction.emoji.name && user.id === userObj.id;
 				};
 				const messagesToDelete = new Set();
 				shows.forEach(function (show) {
 					if (num > 0) {
 						num = num-1;
-						channel.send(embedResource.embedTMDBShow(bot, show)).then(message => {
-							messagesToDelete.add(message);
-							message.react('➕');
-							message.awaitReactions(filter, { max: 1, time: 60000*5, errors: ['time'] }).then(collected => {
-								try {
-									const reactionMessage = collected.first().message;
-									messagesToDelete.forEach(function (msg) {
-										if (msg.id !== reactionMessage.id) {
-											msg.delete();
-										}
-									});
-									reactionMessage.react('✅');
-								} catch(e) {
-									console.log(e);
-								}
-								bot.users.cache.get(adminID).send(
-									`From: ${userObj.username} - Plex Request: ${request}`
-								).then(requestMessage => {
-									bot.users.cache.get(adminID).send(embedResource.embedTMDBShow(bot, show)).then(confirmMessage => {
-										confirmMessage.react('⬇️');
-										tvShowMessages.set(confirmMessage.id, show.id);
-										requests.set(requestMessage.id, new PlexRequest(originalRequest, request));
-										if (requestNum === 999)
-											requestNum = 100;
-										else
-											requestNum++;
-										updateSavedDataFile();
-									});
+						apiResource.searchShowByName(show.name, function (foundShows) {
+							if (foundShows.size !== 0) {
+								channel.send(embedResource.embedTMDBShow(bot, show, true)).then(message => {
+									messagesToDelete.add(message);
 								});
-							}).catch(collected => {
-								message.delete()
-								.then(msg => console.log(`Deleted message from ${msg.author.username}`))
-								.catch(console.error);
-							});;
+							} else {
+								channel.send(embedResource.embedTMDBShow(bot, show, false)).then(message => {
+									messagesToDelete.add(message);
+									message.react('👍');
+									message.awaitReactions(filter, { max: 1, time: 60000*5, errors: ['time'] }).then(collected => {
+										try {
+											const reactionMessage = collected.first().message;
+											messagesToDelete.forEach(function (msg) {
+												if (msg.id !== reactionMessage.id) {
+													msg.delete();
+												}
+											});
+											reactionMessage.react('✅');
+										} catch(e) {
+											console.log(e);
+										}
+										bot.users.cache.get(adminID).send(
+											`From: ${userObj.username} - Plex Request: ${request}`
+										).then(requestMessage => {
+											bot.users.cache.get(adminID).send(embedResource.embedTMDBShow(bot, show, false)).then(confirmMessage => {
+												confirmMessage.react('⬇️');
+												tvShowMessages.set(confirmMessage.id, show.id);
+												requests.set(requestMessage.id, new PlexRequest(originalRequest, request));
+												if (requestNum === 999)
+													requestNum = 100;
+												else
+													requestNum++;
+												updateSavedDataFile();
+											});
+										});
+									}).catch(collected => {
+										message.delete()
+										.then(msg => console.log(`Deleted message from ${msg.author.username}`))
+										.catch(console.error);
+									});;
+								});
+							}
 						});
 					}
 				});
