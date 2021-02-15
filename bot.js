@@ -284,6 +284,9 @@ function sendMovieRequest(channel, userObj, request, test) {
 						if (movie.hasFile || movie.monitored) {
 							channel.send(embedResource.embedRadarrMovie(bot, movie)).then(message => {
 								messagesToDelete.add(message);
+								message.delete({timeout: 60000*5})
+									.then(msg => console.log(`Deleted message from ${msg.author.username}`))
+									.catch(console.error);
 							});
 						} else {
 							channel.send(embedResource.embedRadarrMovie(bot, movie)).then(message => {
@@ -382,6 +385,9 @@ function sendShowRequest(channel, userObj, request, test) {
 							if (foundShows.size !== 0) {
 								channel.send(embedResource.embedTMDBShow(bot, show, true)).then(message => {
 									messagesToDelete.add(message);
+									message.delete({timeout: 60000*5})
+										.then(msg => console.log(`Deleted message from ${msg.author.username}`))
+										.catch(console.error);
 								});
 							} else {
 								channel.send(embedResource.embedTMDBShow(bot, show, false)).then(message => {
