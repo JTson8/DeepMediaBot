@@ -158,6 +158,19 @@ function searchShowByName(term, callback) {
 	});
 }
 
+function searchMovieByName(term, callback) {
+	doAPICall(`get_library_media_info&section_id=1&search=${term}`, function(jsonResult) {
+		var movies = new Set();
+		try {
+			jsonResult.response.data.data.forEach(function(movie) {movies.add(movie);});
+			return callback(movies);
+		} catch (e) {
+			return callback(movies);
+		}
+	});
+}
+
+
 function getRecentlyAddedMovies(callback) {
 	doAPICall('get_recently_added&count=20&media_type=movie', function(jsonResult) {
 		var movies = new Set();
@@ -272,4 +285,4 @@ function get_user_id(username, callback) {
 	});
 }
 
-module.exports = {getRecentlyAddedMovies, getRecentlyAddedShows, home_stats, user_stats, getUsers, searchRadarrMovie, addRadarrMovie, getRadarrMovieFiles, downloadRadarrMovie, searchTMDBShow, addMedusaShow, searchShowByName}
+module.exports = {getRecentlyAddedMovies, getRecentlyAddedShows, home_stats, user_stats, getUsers, searchRadarrMovie, addRadarrMovie, getRadarrMovieFiles, downloadRadarrMovie, searchTMDBShow, addMedusaShow, searchShowByName, searchMovieByName}

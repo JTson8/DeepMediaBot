@@ -224,10 +224,43 @@ function embedHelp(bot) {
 	});
 }
 
-function embedRadarrMovie(bot, movie) {
+function embedRadarrMovie(bot, movie, rating_key) {
 	var imageUrl = "";
 	if (movie.images !== undefined && movie.images.length !== 0) {
 		imageUrl = movie.images[0].remoteUrl;
+	}
+	var onPlexValue = ((movie.hasFile === true) ? "Yes" : "No")
+	if (rating_key !== undefined) {
+		onPlexValue = encodeURI(`https://app.plex.tv/desktop#!/server/0f86ca6355f741bfc69db339f995e8c0b47f3165/details?key=/library/metadata/${rating_key}`);
+		return(
+			{
+				embed: {
+					color: 3447003,
+					author: {
+					  name: bot.user.username,
+					  icon_url: 'https://styles.redditmedia.com/t5_2ql7e/styles/communityIcon_mdwl2x2rtzb11.png'
+					},
+					title: movie.title,
+					description: `||${movie.overview}||`,
+					thumbnail: {
+						url: imageUrl 
+					},
+					fields: [{
+						name: "Year",
+						value: ((movie.year !== "") ? movie.year : "null")
+					  },
+					  {
+						name: "On Plex",
+						value: onPlexValue,
+					  }
+					],
+					timestamp: new Date(),
+					footer: {
+					  icon_url: bot.user.avatarURL
+					}
+				}
+			}
+		)
 	}
 	return(
 		{
@@ -248,8 +281,8 @@ function embedRadarrMovie(bot, movie) {
 				  },
 				  {
 					name: "On Plex",
-					value: ((movie.hasFile === true) ? "Yes" : "No"),
-					inline: true
+					value: onPlexValue,
+					inline: !movie.hasFile
 				  },
 				  {
 					name: "Already Searching",
@@ -303,13 +336,18 @@ function embedRadarrMovieFile(bot, movie) {
 	)
 }
 
-function embedTMDBShow(bot, show, added) {
+function embedTMDBShow(bot, show, added, rating_key) {
 	var imageUrl = "";
 	if (show.poster_path !== null && show.poster_path.length !== 0) {
 		imageUrl = `https://www.themoviedb.org/t/p/w58_and_h87_face/${show.poster_path}`
 	} else if (show.backdrop_path !== null && show.backdrop_path.length !== 0) {
 		imageUrl = `https://www.themoviedb.org/t/p/w58_and_h87_face/${show.backdrop_path}`
 	}
+	var onPlexValue = ((added === true) ? "Yes" : "No")
+	if (rating_key !== undefined) {
+		onPlexValue = encodeURI(`https://app.plex.tv/desktop#!/server/0f86ca6355f741bfc69db339f995e8c0b47f3165/details?key=/library/metadata/${rating_key}`);
+	}
+	
 	return(
 		{
 			embed: {
@@ -330,8 +368,8 @@ function embedTMDBShow(bot, show, added) {
 				  },
 				  {
 					name: "On Plex",
-					value: ((added === true) ? "Yes" : "No"),
-					inline: true
+					value: onPlexValue,
+					inline: !added
 				  }
 				],
 				timestamp: new Date(),
