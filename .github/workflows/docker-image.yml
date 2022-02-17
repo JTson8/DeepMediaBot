@@ -23,5 +23,5 @@ jobs:
     - name: Build the Docker image
       run: docker build . --file Dockerfile --tag ${{secrets.DOCKER_USER}}/deep_media_bot:bestpush
     - name: Docker Push
-      run: docker push ${{secrets.DOCKER_USER}}/deep_media_bot
+      run: docker push ${{secrets.DOCKER_USER}}/deep_media_bot:bestpush
 
